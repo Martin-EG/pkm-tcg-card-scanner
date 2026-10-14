@@ -1,23 +1,30 @@
-20 photos, CPU threads: 4, flip: True
+44 photos, CPU threads: 4, flip: True
 
-=== clip: 20 photos ===
-top-1 75.0%   top-3 80.0%   mean 0.778s   max 1.143s   card found 100%
+=== clip: 44 photos ===
+top-1 84.1%   top-3 86.4%   mean 0.709s   max 1.251s   card found 100%
 failures (photo | expected | rank | top-3):
   30th-153.heic | 30th-153 Sylveon ex | - | sv03-223 Charizard ex (0.813), sv04-192 Veluza (0.808), sv08.5-147 Ceruledge ex (0.804)
   me04-117.heic | me04-117 Mega Floette ex | 3 | sv04-205 Yveltal (0.833), sv08.5-169 Terapagos ex (0.819), me04-117 Mega Floette ex (0.818)
+  mee-010.heic | mee-010 ? | - | sv03-230 Basic Fire Energy (0.863), sv02-278 Basic Grass Energy (0.835), sv02-279 Basic Water Energy (0.834)  [NOT IN CATALOG]
+  mee-014.heic | mee-014 ? | - | sv06.5-098 Basic Darkness Energy (0.811), sv06.5-099 Basic Metal Energy (0.807), sv01-257 Basic Lightning Energy (0.805)  [NOT IN CATALOG]
   mep-078.heic | mep-078 ? | - | me02-067 Toxel (0.811), sv03.5-016 Pidgey (0.759), svp-043 Eevee (0.757)  [NOT IN CATALOG]
   sv03.5-184.heic | sv03.5-184 Blastoise ex | - | sv06-213 Wellspring Mask Ogerpon ex (0.851), sv02-234 Chi-Yu ex (0.851), svp-132 Greninja ex (0.845)
   sv08.5-022.heic | sv08.5-022 Vaporeon | - | sv06-175 Phione (0.853), sv10-233 Team Rocket's Nidoking ex (0.848), sv07-030 Blastoise ex (0.846)
 
-=== dinov2: 20 photos ===
-top-1 90.0%   top-3 95.0%   mean 0.840s   max 1.167s   card found 100%
+=== dinov2: 44 photos ===
+top-1 84.1%   top-3 93.2%   mean 0.782s   max 1.373s   card found 100%
 failures (photo | expected | rank | top-3):
+  me04-025.heic | me04-025 Wimpod | 2 | me04-062 Ferroseed (0.660), me04-025 Wimpod (0.660), sv04.5-128 Frigibax (0.650)
+  mee-010.heic | mee-010 ? | - | me04-113 Special Red Card (0.640), me01-166 Air Balloon (0.639), me03-117 Wondrous Patch (0.631)  [NOT IN CATALOG]
+  mee-014.heic | mee-014 ? | - | sv04-143 Porygon2 (0.625), me03-113 Poké Pad (0.623), sv05-128 Dunsparce (0.615)  [NOT IN CATALOG]
   mep-078.heic | mep-078 ? | - | sv09-084 Rockruff (0.583), sv04.5-074 Maushold (0.582), sv01-161 Maushold (0.579)  [NOT IN CATALOG]
+  sv03.5-004.heic | sv03.5-004 Charmander | 2 | sv04.5-007 Charmander (0.816), sv03.5-004 Charmander (0.792), 30th-033 Pikachu (0.780)
+  sv04.5-057.heic | sv04.5-057 Gengar | 2 | me03-052 Drapion (0.742), sv04.5-057 Gengar (0.741), sv04-247 Tapu Koko ex (0.739)
   sv08.5-022.heic | sv08.5-022 Vaporeon | 2 | sv03.5-134 Vaporeon (0.723), sv08.5-022 Vaporeon (0.722), sv06.5-043 Varoom (0.717)
 
 | model    | photos |  top-1 |  top-3 |  mean s |  max s | card found |
 |----------|--------|--------|--------|---------|--------|------------|
-| clip     |     20 |  75.0% |  80.0% |   0.778 |  1.143 |       100% |
-| dinov2   |     20 |  90.0% |  95.0% |   0.840 |  1.167 |       100% |
+| clip     |     44 |  84.1% |  86.4% |   0.709 |  1.251 |       100% |
+| dinov2   |     44 |  84.1% |  93.2% |   0.782 |  1.373 |       100% |
 
 report: /home/user/pkm-tcg-card-scanner/reports/phase0_eval.json
