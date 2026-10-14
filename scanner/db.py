@@ -26,6 +26,60 @@ CREATE TABLE IF NOT EXISTS scan_cards (
     candidates TEXT NOT NULL,
     PRIMARY KEY (scan_id, card_index)
 );
+CREATE TABLE IF NOT EXISTS price_cache (
+    card_id TEXT NOT NULL,          -- TCGdex id
+    variant TEXT NOT NULL,          -- '' marks "looked up, no price"
+    market_usd REAL,
+    provider TEXT,                  -- API that supplied the TCGplayer price: tcgdex | pokemontcg
+    price_date TEXT,                -- when TCGplayer last updated the price
+    fetched_on TEXT NOT NULL,       -- local date of the lookup
+    PRIMARY KEY (card_id, variant, fetched_on)
+);
+CREATE TABLE IF NOT EXISTS fx_rates (
+    series TEXT NOT NULL,
+    rate_date TEXT NOT NULL,        -- date Banxico published the rate for
+    rate REAL NOT NULL,
+    fetched_at TEXT NOT NULL,
+    PRIMARY KEY (series, rate_date)
+);
+CREATE TABLE IF NOT EXISTS buy_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    currency TEXT NOT NULL,         -- MXN or USD, fixed when the session opens
+    fx_rate REAL,                   -- NULL when CONVERT_TO_MXN is false
+    fx_date TEXT,
+    fx_series TEXT,
+    fx_stale INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS session_cards (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL REFERENCES buy_sessions(id),
+    scan_id INTEGER,
+    card_index INTEGER,
+    card_id TEXT NOT NULL,
+    catalog_language TEXT NOT NULL, -- language of the catalog entry (en for now)
+    printed_language TEXT NOT NULL, -- language printed on the card (es/ja flagged by OCR)
+    name TEXT, set_name TEXT, number TEXT,
+    condition TEXT NOT NULL,
+    variant TEXT,
+    variants TEXT,                  -- JSON list of variants that have a price
+    price_usd REAL,                 -- price the offer used, NULL when none
+    price_source TEXT,              -- tcgplayer | manual
+    price_provider TEXT,            -- API that supplied the TCGplayer price: tcgdex | pokemontcg
+    price_date TEXT,                -- TCGplayer update date, or the day it was entered by hand
+    price_manual INTEGER NOT NULL DEFAULT 0,
+    price_approximate INTEGER NOT NULL DEFAULT 0, -- English price used for a Spanish card
+    price_stale INTEGER NOT NULL DEFAULT 0,       -- old cached price, API offline
+    fx_rate REAL,                   -- rate the offer used; NULL without conversion
+    fx_date TEXT,
+    currency TEXT NOT NULL,
+    market REAL, cash_offer REAL, credit_offer REAL,
+    buying INTEGER,                 -- 0: below the minimum; NULL: no price yet
+    accepted INTEGER NOT NULL DEFAULT 1,
+    ebay_url TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS corrections (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     created_at TEXT NOT NULL,
@@ -48,6 +102,15 @@ class Store:
         self.conn = sqlite3.connect(path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(SCHEMA)
+        # Columns added after a table was first created (CREATE IF NOT EXISTS skips them).
+        self._ensure_column("price_cache", "provider", "TEXT")
+        self._ensure_column("session_cards", "price_provider", "TEXT")
+
+    def _ensure_column(self, table: str, column: str, kind: str) -> None:
+        columns = {r[1] for r in self.conn.execute(f"PRAGMA table_info({table})")}
+        if column not in columns:
+            self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {kind}")
+            self.conn.commit()
 
     def add_scan(self, photo_path: str) -> int:
         cur = self.conn.execute("INSERT INTO scans (created_at, photo_path) VALUES (?, ?)", (_now(), photo_path))

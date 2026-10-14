@@ -1,0 +1,44 @@
+{
+ "id": "ex12-57",
+ "name": "Machop",
+ "localId": "57",
+ "pricing": {
+  "cardmarket": {
+   "updated": "2026-10-13T22:54:32.792Z",
+   "unit": "EUR",
+   "idProduct": 276934,
+   "avg": 0.21,
+   "low": 0.02,
+   "trend": 3.34,
+   "avg1": 0.1,
+   "avg7": 8.04,
+   "avg30": 2.06,
+   "avg-holo": 4.47,
+   "low-holo": 1,
+   "trend-holo": 11.29,
+   "avg1-holo": 13.75,
+   "avg7-holo": 9.84,
+   "avg30-holo": 6.74
+  },
+  "tcgplayer": {
+   "unit": "USD",
+   "updated": "2026-10-13T22:54:41.645Z",
+   "normal": {
+    "productId": 86993,
+    "lowPrice": 0.14,
+    "midPrice": 0.43,
+    "highPrice": 19.8,
+    "marketPrice": 0.38,
+    "directLowPrice": null
+   },
+   "reverse-holofoil": {
+    "productId": 86993,
+    "lowPrice": 19.5,
+    "midPrice": 41.96,
+    "highPrice": 649.72,
+    "marketPrice": 24.05,
+    "directLowPrice": null
+   }
+  }
+ }
+}

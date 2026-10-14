@@ -1,0 +1,58 @@
+{
+ "base1": {
+  "releaseDate": "1999-01-09",
+  "serie": "base",
+  "name": "Base Set",
+  "abbreviation": "BS",
+  "official_count": 102
+ },
+ "sv03.5": {
+  "releaseDate": "2023-09-22",
+  "serie": "sv",
+  "name": "151",
+  "abbreviation": "MEW",
+  "official_count": 165
+ },
+ "sv04.5": {
+  "releaseDate": "2024-01-26",
+  "serie": "sv",
+  "name": "Paldean Fates",
+  "abbreviation": "PAF",
+  "official_count": 91
+ },
+ "svp": {
+  "releaseDate": "2023-03-31",
+  "serie": "sv",
+  "name": "SVP Black Star Promos",
+  "abbreviation": "SVP",
+  "official_count": 225
+ },
+ "hgss3": {
+  "releaseDate": "2010-08-18",
+  "serie": "hgss",
+  "name": "Undaunted",
+  "abbreviation": "UND",
+  "official_count": 90
+ },
+ "me01": {
+  "releaseDate": "2025-09-26",
+  "serie": "me",
+  "name": "Mega Evolution",
+  "abbreviation": "MEG",
+  "official_count": 132
+ },
+ "me04": {
+  "releaseDate": "2026-05-22",
+  "serie": "me",
+  "name": "Chaos Rising",
+  "abbreviation": "CRI",
+  "official_count": 86
+ },
+ "swshp": {
+  "releaseDate": "2019-11-15",
+  "serie": "swsh",
+  "name": "SWSH Black Star Promos",
+  "abbreviation": null,
+  "official_count": 307
+ }
+}

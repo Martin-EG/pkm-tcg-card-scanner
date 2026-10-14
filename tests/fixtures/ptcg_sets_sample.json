@@ -1,0 +1,74 @@
+[
+ {
+  "id": "base1",
+  "name": "Base",
+  "series": "Base",
+  "printedTotal": 102,
+  "total": 102,
+  "ptcgoCode": "BS",
+  "releaseDate": "1999/01/09"
+ },
+ {
+  "id": "hgss3",
+  "name": "HS\u2014Undaunted",
+  "series": "HeartGold & SoulSilver",
+  "printedTotal": 90,
+  "total": 91,
+  "ptcgoCode": "UD",
+  "releaseDate": "2010/08/18"
+ },
+ {
+  "id": "swshp",
+  "name": "SWSH Black Star Promos",
+  "series": "Sword & Shield",
+  "printedTotal": 307,
+  "total": 304,
+  "ptcgoCode": "PR-SW",
+  "releaseDate": "2019/11/15"
+ },
+ {
+  "id": "svp",
+  "name": "Scarlet & Violet Black Star Promos",
+  "series": "Scarlet & Violet",
+  "printedTotal": 215,
+  "total": 196,
+  "ptcgoCode": "PR-SV",
+  "releaseDate": "2023/01/01"
+ },
+ {
+  "id": "sv3pt5",
+  "name": "151",
+  "series": "Scarlet & Violet",
+  "printedTotal": 165,
+  "total": 207,
+  "ptcgoCode": "MEW",
+  "releaseDate": "2023/09/22"
+ },
+ {
+  "id": "sv4pt5",
+  "name": "Paldean Fates",
+  "series": "Scarlet & Violet",
+  "printedTotal": 91,
+  "total": 245,
+  "ptcgoCode": "PAF",
+  "releaseDate": "2024/01/26"
+ },
+ {
+  "id": "me1",
+  "name": "Mega Evolution",
+  "series": "Mega Evolution",
+  "printedTotal": 132,
+  "total": 188,
+  "ptcgoCode": "MEG",
+  "releaseDate": "2025/09/26"
+ },
+ {
+  "id": "me4",
+  "name": "Chaos Rising",
+  "series": "Mega Evolution",
+  "printedTotal": 86,
+  "total": 122,
+  "ptcgoCode": "CRI",
+  "releaseDate": "2026/05/22"
+ }
+]

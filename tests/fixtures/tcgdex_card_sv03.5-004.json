@@ -1,0 +1,44 @@
+{
+ "id": "sv03.5-004",
+ "name": "Charmander",
+ "localId": "004",
+ "pricing": {
+  "cardmarket": {
+   "updated": "2026-10-13T22:54:32.797Z",
+   "unit": "EUR",
+   "idProduct": 733599,
+   "avg": 0.12,
+   "low": 0.02,
+   "trend": 0.16,
+   "avg1": 0.38,
+   "avg7": 0.17,
+   "avg30": 0.12,
+   "avg-holo": 0.43,
+   "low-holo": 0.02,
+   "trend-holo": 0.39,
+   "avg1-holo": 0.55,
+   "avg7-holo": 0.39,
+   "avg30-holo": 0.42
+  },
+  "tcgplayer": {
+   "unit": "USD",
+   "updated": "2026-10-13T22:55:06.783Z",
+   "reverse-holofoil": {
+    "productId": 502555,
+    "lowPrice": 0.1,
+    "midPrice": 0.44,
+    "highPrice": 19.97,
+    "marketPrice": 0.69,
+    "directLowPrice": 0.45
+   },
+   "normal": {
+    "productId": 502555,
+    "lowPrice": 0.01,
+    "midPrice": 0.26,
+    "highPrice": 25,
+    "marketPrice": 0.26,
+    "directLowPrice": null
+   }
+  }
+ }
+}
