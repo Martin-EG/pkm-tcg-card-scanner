@@ -40,10 +40,19 @@ class BanxicoClient:
             raise FxUnavailable("Falta BANXICO_TOKEN en .env para obtener el tipo de cambio.")
         try:
             r = self.http.get(f"/series/{series}/datos/oportuno", headers={"Bmx-Token": self.token})
-            r.raise_for_status()
-            datos = r.json()["bmx"]["series"][0]["datos"]
-        except (httpx.HTTPError, KeyError, IndexError, ValueError) as e:
+        except httpx.HTTPError as e:
             raise FxUnavailable(f"Banxico no respondió: {e}") from e
+        if r.status_code >= 400:
+            # Banxico explains rejections in Spanish, e.g. {"error": {"mensaje": "Token inválido"}}.
+            try:
+                mensaje = r.json()["error"]["mensaje"]
+            except (ValueError, KeyError, TypeError):
+                mensaje = f"HTTP {r.status_code}"
+            raise FxUnavailable(f"Banxico rechazó la consulta: {mensaje}")
+        try:
+            datos = r.json()["bmx"]["series"][0]["datos"]
+        except (KeyError, IndexError, ValueError) as e:
+            raise FxUnavailable(f"Respuesta inesperada de Banxico: {e}") from e
         for d in reversed(datos):
             try:
                 rate = float(d["dato"].replace(",", ""))
