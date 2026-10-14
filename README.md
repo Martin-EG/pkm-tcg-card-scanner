@@ -34,7 +34,7 @@ Every percentage, factor and minimum lives in `config/reglas.yaml`. None are wri
 | 0 | Identification proof of concept (image only) | done: [results](docs/phase0-results.md) |
 | 1 | Identification service: multi-card crop, OCR, `POST /identify` | done: [results](docs/phase1-results.md) |
 | 2 | Prices, exchange rate, offers, buy sessions | done: [results](docs/phase2-results.md) |
-| 3 | Counter app (React + Vite PWA, Mexican Spanish UI) | next |
+| 3 | Counter app (React + Vite PWA, Mexican Spanish UI) | built; phone checks pending: [results](docs/phase3-results.md) |
 | 4 | Test at a shop | planned |
 
 Spanish and Japanese catalogs are deferred for now. Cards printed in those languages are flagged for the employee to check.
@@ -42,6 +42,7 @@ Spanish and Japanese catalogs are deferred for now. Cards printed in those langu
 ## Project structure
 
 ```
+app/                      Counter app for the phone (React + Vite PWA, Mexican Spanish UI), served by the API
 config/reglas.yaml        Business rules and every tunable threshold (shares, factors, minimum, crop, OCR)
 .env.example              Server settings: languages, USD→MXN conversion, API keys
 scanner/
@@ -63,6 +64,7 @@ scripts/
   eval.py                 Phase 0 evaluation (image only)
   eval_phase1.py          Phase 1 QA gate (accuracy, page time, reprints, errors, languages)
   fix_macos_openmp.sh     macOS only: make faiss and torch share one OpenMP runtime
+  make_cert.py            Local HTTPS certificate for the shop network (see below)
 tests/                    pytest suite; network calls are faked or recorded
 photos/                   Labeled test photos (<tcgdex id>.heic), binder pages, Spanish cards
 docs/                     MVP, phase plan, per-phase results
@@ -72,7 +74,7 @@ data/                     Catalog, images, indexes, SQLite (git-ignored, ~2 GB)
 
 ## Getting started
 
-Requires Python 3.11+ and about 3 GB of disk space. The shop PC needs no GPU.
+Requires Python 3.11+, Node.js 20+ (only to build the phone app), and about 3 GB of disk space. The shop PC needs no GPU.
 
 ### 1. Install
 
@@ -115,13 +117,43 @@ python scripts/fetch_catalog.py --since 1999-01-01     # ~19.7k cards, ~1.5 GB; 
 python scripts/build_index.py --model dinov2 --lang en  # ~35 min on a laptop CPU
 ```
 
-### 4. Run the server
+### 4. Build the phone app
 
 ```bash
-uvicorn scanner.api:app --host 0.0.0.0 --port 8000
+cd app && npm install && npm run build && cd ..
 ```
 
-Phones on the shop's Wi-Fi reach it at `http://<shop-pc-ip>:8000`. Interactive API docs are at `/docs`.
+The server serves the built app (`app/dist`) at its root address, so phones need nothing else installed.
+
+### 5. HTTPS on the shop network
+
+Phones allow the live camera and installing the app only on HTTPS pages. Create a certificate for the shop PC once:
+
+```bash
+python scripts/make_cert.py
+```
+
+It creates a small certificate authority for the shop (`data/certs/ca.pem`, made once) and a certificate for this PC's addresses. Re-run it if the PC's IP changes; reserving the IP in the router avoids that.
+
+### 6. Run the server
+
+```bash
+uvicorn scanner.api:app --host 0.0.0.0 --port 8443 --ssl-certfile data/certs/server.pem --ssl-keyfile data/certs/server.key
+```
+
+Interactive API docs are at `/docs`.
+
+### 7. Set up each phone (once)
+
+1. Connect the phone to the shop's Wi-Fi.
+2. Open `https://<shop-pc-ip>:8443/certificado` and download the certificate. The browser warns that the site isn't trusted yet; continue to the site, since that's the point of this step.
+3. Install the certificate:
+   - **iPhone:** Settings → General → VPN & Device Management → install the downloaded profile. Then go to Settings → General → About → Certificate Trust Settings and turn on full trust for "TCG Buylist Scanner – tienda local".
+   - **Android:** Settings → Security → Encryption & credentials → Install a certificate → CA certificate, and pick the downloaded file. The menu names vary by phone.
+4. Open `https://<shop-pc-ip>:8443`. There should be no warning now.
+5. Add it to the home screen: Share → Add to Home Screen on iPhone; menu → Install app on Android.
+
+Without these steps the app still works over `http://<shop-pc-ip>:8000` (run uvicorn without the `--ssl-*` options), but it uses the phone's own camera app instead of the live camera with the guide frame, and it can't be installed.
 
 | Endpoint | Purpose |
 |---|---|
@@ -133,10 +165,11 @@ Phones on the shop's Wi-Fi reach it at `http://<shop-pc-ip>:8000`. Interactive A
 | `GET /sessions/{id}` | Cards with offers, plus cash and credit totals |
 | `GET /settings` | Active currency, languages, conditions (read-only) |
 
-### 5. Test
+### 8. Test
 
 ```bash
-python -m pytest -q                              # unit and API tests; no network or models needed
+python -m pytest -q                              # server: unit and API tests; no network or models needed
+cd app && npm test                               # phone app: offline handling, summary, picker, CSV
 python scripts/eval_phase1.py --threads 4        # identification QA gate; needs data/ built
 ```
 
