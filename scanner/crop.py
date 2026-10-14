@@ -244,7 +244,7 @@ def find_card_quads(image: np.ndarray) -> list[np.ndarray]:
         if quad is None or aspect_error(quad) > MAX_ASPECT_ERROR:
             continue
         # The outline must fill its quad, not just touch 4 points of it.
-        if hull_area < 0.9 * _quad_area(quad):
+        if hull_area < _CFG["multi_min_hull_fill"] * _quad_area(quad):
             continue
         if _max_corner_deviation(quad) > _CFG["multi_max_corner_deviation_deg"]:
             continue
@@ -260,7 +260,7 @@ def find_card_quads(image: np.ndarray) -> list[np.ndarray]:
                  for i in range(len(candidates))]
     kept: list[int] = []
     for i in range(len(candidates)):
-        inner_cards = {j for j in contained[i] if _quad_area(candidates[j]) < 0.6 * _quad_area(candidates[i])}
+        inner_cards = {j for j in contained[i] if _quad_area(candidates[j]) < _CFG["multi_inner_card_ratio"] * _quad_area(candidates[i])}
         if len(inner_cards) >= 2:
             continue  # a page or sheet holding several cards
         if any(_contains(candidates[k], centers[i]) for k in kept):

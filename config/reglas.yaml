@@ -31,6 +31,10 @@ crop:
   # Bright-region candidates (cards on a dark binder page): the filled region must
   # cover at least this share of its rectangle.
   multi_min_fill: 0.85
+  # An edge outline's convex hull must cover at least this share of its 4-corner quad.
+  multi_min_hull_fill: 0.9
+  # An outline holding 2+ outlines smaller than this share of its area is a page, not a card.
+  multi_inner_card_ratio: 0.6
 
 quality:
   # Variance of the Laplacian on the grayscale photo resized to quality_max_side.
@@ -95,3 +99,38 @@ ocr:
     total: 0.05
     set_code: 0.08
     language: 0.06
+
+pricing:
+  # Offer = price_usd * (fx if CONVERT_TO_MXN) * condition factor * cash_pct | credit_pct
+  cash_pct: 0.85
+  credit_pct: 0.90
+  # TODO: provisional; set the factors with the shop.
+  condition_factors:
+    NM: 1.0
+    LP: 0.85
+    MP: 0.70
+    HP: 0.50
+    DMG: 0.30
+  default_condition: NM
+  # TODO: provisional; set with the shop. A card whose cash offer is below the
+  # minimum for the active currency is marked "not buying".
+  min_offer:
+    mxn: 10.00
+    usd: 0.50
+  # Offers and totals are rounded to this many decimals.
+  decimals: 2
+  # TCGplayer variant used when the employee hasn't picked one: the first one
+  # that has a market price.
+  variant_order: [normal, holofoil, reverseHolofoil, 1stEditionHolofoil, 1stEditionNormal, unlimitedHolofoil]
+  # Price APIs tried in order: TCGdex publishes TCGplayer's market price under our
+  # own card ids; pokemontcg.io (same TCGplayer data) is the backup.
+  price_sources: [tcgdex, pokemontcg]
+  # A price looked up today is reused all day; older cached prices are used only
+  # when the price API can't be reached (offline at a fair), and shown with their date.
+  price_cache_days: 1
+
+fx:
+  # Banxico SIE series: FIX exchange rate, pesos per US dollar.
+  series: SF43718
+  # Look up the rate at most this often; a published value is used until then.
+  refresh_hours: 12

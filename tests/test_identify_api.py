@@ -12,6 +12,7 @@ import scanner.identify as identify_module
 from scanner import index as faiss_index
 from scanner.api import create_app
 from scanner.db import Store
+from scanner.settings import Settings
 from scanner.embedders import embed_cards
 from tests.test_crop import binder_page, colored_card
 
@@ -108,7 +109,8 @@ def test_same_name_in_top_k_asks_for_ocr(data_dir, monkeypatch):
 def client(data_dir, tmp_path):
     ident = identify_module.Identifier(("en",), data_dir, ocr=False)
     store = Store(tmp_path / "scanner.db")
-    app = create_app(identifier=ident, store=store, scans_dir=tmp_path / "scans")
+    app = create_app(identifier=ident, store=store, scans_dir=tmp_path / "scans",
+                     sessions=object(), settings=Settings())  # pricing is covered in test_sessions_api
     with TestClient(app) as c:
         c.store = store
         yield c

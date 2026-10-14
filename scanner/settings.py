@@ -18,6 +18,14 @@ class Settings(BaseSettings):
     enable_japanese: bool = False
     # When false, prices, offers, and the minimum buy price are in USD.
     convert_to_mxn: bool = True
+    # pokemontcg.io works without a key, with lower rate limits.
+    pokemontcg_api_key: str | None = None
+    # Banxico SIE token (free); needed only when convert_to_mxn is true.
+    banxico_token: str | None = None
+
+    @property
+    def currency(self) -> str:
+        return "MXN" if self.convert_to_mxn else "USD"
 
     @property
     def languages(self) -> tuple[str, ...]:
