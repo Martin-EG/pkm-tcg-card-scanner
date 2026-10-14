@@ -128,6 +128,7 @@ def test_identify_binder_page(client):
     assert [c["candidates"][0]["id"] for c in body["cards"]] == [f"t1-{i:03d}" for i in range(1, 10)]
     first = body["cards"][0]
     assert first["language"] == "en" and len(first["candidates"]) == 3
+    assert all(0 <= c["confidence"] <= 1 for card in body["cards"] for c in card["candidates"])
     assert client.get(first["crop_url"]).status_code == 200
     row = client.store.get_card(body["scan_id"], 0)
     assert row["top_card_id"] == "t1-001"

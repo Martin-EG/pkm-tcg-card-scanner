@@ -13,7 +13,8 @@ from pathlib import Path
 import cv2
 import numpy as np
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps
 from pydantic import BaseModel
 
@@ -33,6 +34,9 @@ except ImportError:
     pass
 
 SCANS_DIR = DATA / "scans"
+CA_CERT = DATA / "certs" / "ca.pem"
+# Built counter app (cd app && npm run build).
+APP_DIST = ROOT / "app" / "dist"
 # Shown with a card whose printed language has no catalog yet.
 LANGUAGE_WARNINGS = {
     "es": "Parece una carta en español. Solo hay catálogo en inglés: confirma la carta y el precio a mano.",
@@ -97,7 +101,8 @@ def decode_photo(data: bytes) -> np.ndarray:
 
 
 def create_app(identifier=None, store: Store | None = None, scans_dir: Path = SCANS_DIR,
-               sessions: SessionService | None = None, settings: Settings | None = None) -> FastAPI:
+               sessions: SessionService | None = None, settings: Settings | None = None,
+               app_dist: Path = APP_DIST) -> FastAPI:
     """Services can be injected for tests; by default they load at startup."""
     state: dict = {"identifier": identifier, "store": store, "sessions": sessions, "settings": settings}
 
@@ -183,7 +188,9 @@ def create_app(identifier=None, store: Store | None = None, scans_dir: Path = SC
             cv2.imwrite(str(crop_path), r.crop)
             candidates = [{
                 "id": c.card_id, "name": c.name, "set": c.set_id, "set_name": c.set_name,
-                "number": c.number, "language": c.lang, "confidence": c.score,
+                "number": c.number, "language": c.lang,
+                # Similarity plus the OCR bonus can pass 1; the app shows 0-1.
+                "confidence": round(min(1.0, max(0.0, c.score)), 3), "score": c.score,
                 "image_url": f"/images/{c.image_path.split('images/', 1)[-1]}",
             } for c in r.candidates]
             store.add_card(scan_id, i, _rel(crop_path), r.language, candidates[0]["id"] if candidates else None,
@@ -222,6 +229,18 @@ def create_app(identifier=None, store: Store | None = None, scans_dir: Path = SC
     @app.get("/scans/{scan_id}/{name}")
     async def scan_file(scan_id: int, name: str):
         return _safe_file(scans_dir / str(scan_id), name)
+
+    @app.get("/certificado")
+    async def shop_certificate():
+        """The shop's certificate authority, to install once on each phone (local HTTPS)."""
+        if not CA_CERT.is_file():
+            raise HTTPException(404, "Aún no hay certificado. Ejecuta scripts/make_cert.py en la PC de la tienda.")
+        return Response(CA_CERT.read_bytes(), media_type="application/x-x509-ca-cert",
+                        headers={"Content-Disposition": 'attachment; filename="tienda-ca.crt"'})
+
+    if app_dist.is_dir():
+        # Mounted last so the API routes above win; html=True serves index.html at "/".
+        app.mount("/", StaticFiles(directory=app_dist, html=True), name="app")
 
     return app
 
