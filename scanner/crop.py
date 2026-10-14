@@ -20,7 +20,7 @@ import numpy as np
 CARD_ASPECT = 63 / 88
 OUT_W, OUT_H = 630, 880
 # Segmentation runs on a copy this size; the warp uses the full-size photo.
-SEGMENT_MAX_SIDE = 320
+SEGMENT_MAX_SIDE = 256
 GRABCUT_ITERATIONS = 3
 # Border of the frame treated as background when seeding GrabCut.
 SEED_MARGIN = 0.04

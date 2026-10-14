@@ -50,7 +50,7 @@ class ClipEmbedder:
 
     name = "clip"
 
-    def __init__(self, arch: str = "ViT-B-32", pretrained: str = "openai"):
+    def __init__(self, arch: str = "ViT-B-32-quickgelu", pretrained: str = "openai"):
         import open_clip
 
         self.model, _, _ = open_clip.create_model_and_transforms(arch, pretrained=pretrained)
