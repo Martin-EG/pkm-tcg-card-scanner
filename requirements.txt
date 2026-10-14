@@ -1,0 +1,14 @@
+# Phase 0: identification proof of concept (CPU only).
+# On the shop PC install the CPU build of torch first to avoid CUDA downloads:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+torch>=2.3
+torchvision>=0.18
+open_clip_torch>=2.24
+transformers>=4.41
+faiss-cpu>=1.8
+opencv-python-headless>=4.9
+numpy>=1.26
+pillow>=10.3
+pillow-heif>=0.16
+tcgdex-sdk>=2.2
+pytest>=8.0
