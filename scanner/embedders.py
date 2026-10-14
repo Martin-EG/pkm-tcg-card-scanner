@@ -92,3 +92,31 @@ def load_embedder(name: str) -> Embedder:
     if name == "dinov2":
         return Dinov2Embedder()
     raise ValueError(f"unknown model {name!r}; choose from {MODELS}")
+
+
+# The artwork box of a modern card, as (left, top, right, bottom) fractions.
+# Reverse-holo foil, promo stamps, and imperfect crops change the rest of the card
+# but not the artwork, so it gets an embedding of its own.
+ART_BOX = (0.08, 0.10, 0.92, 0.52)
+# Share of the similarity score that comes from the artwork box.
+ART_WEIGHT = 0.5
+
+
+def artwork(card: Image.Image) -> Image.Image:
+    w, h = card.size
+    left, top, right, bottom = ART_BOX
+    return card.crop((int(left * w), int(top * h), int(right * w), int(bottom * h)))
+
+
+def embed_cards(embedder: Embedder, cards: list[Image.Image]) -> np.ndarray:
+    """Whole card and artwork box, weighted and concatenated into one unit vector.
+
+    Inner product of two such vectors = (1 - ART_WEIGHT) * card similarity
+    + ART_WEIGHT * artwork similarity.
+    """
+    cards = [c.convert("RGB") for c in cards]
+    vecs = embedder.embed(cards + [artwork(c) for c in cards])
+    whole, art = vecs[: len(cards)], vecs[len(cards) :]
+    return np.ascontiguousarray(
+        np.hstack([np.sqrt(1 - ART_WEIGHT) * whole, np.sqrt(ART_WEIGHT) * art]), dtype=np.float32
+    )

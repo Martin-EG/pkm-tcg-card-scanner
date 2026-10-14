@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from scanner import index as faiss_index  # noqa: E402
-from scanner.embedders import MODELS, load_embedder  # noqa: E402
+from scanner.embedders import MODELS, embed_cards, load_embedder  # noqa: E402
 
 
 def read_catalog(path: Path) -> list[dict]:
@@ -55,7 +55,7 @@ def main(argv: list[str] | None = None) -> int:
         for r in batch:
             with Image.open(ROOT / r["image_path"]) as im:
                 images.append(im.convert("RGB"))
-        chunks.append(embedder.embed(images))
+        chunks.append(embed_cards(embedder, images))
         ids.extend(r["id"] for r in batch)
         done = start + len(batch)
         rate = done / (time.perf_counter() - t0)
