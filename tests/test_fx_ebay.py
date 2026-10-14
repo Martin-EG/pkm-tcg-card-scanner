@@ -28,6 +28,12 @@ def test_banxico_latest_value_and_token_header():
     assert seen == {"path": "/SieAPIRest/service/v1/series/SF43718/datos/oportuno", "token": "t"}
 
 
+def test_banxico_rejection_message_is_shown():
+    body = {"error": {"mensaje": "Token inválido", "detalle": "El token enviado no es válido"}}
+    with pytest.raises(FxUnavailable, match="Token inválido"):
+        _client(lambda r: httpx.Response(400, json=body)).latest("SF43718")
+
+
 def test_banxico_without_token_or_value():
     with pytest.raises(FxUnavailable):
         _client(lambda r: httpx.Response(200, json=BANXICO), token=None).latest("SF43718")

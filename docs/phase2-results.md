@@ -18,11 +18,19 @@ Every [AUTO] gate item passes. The MVP example comes out exactly in both modes: 
 | [AUTO] Tests for each condition, a card below the minimum, a card without a price | **PASS** | `test_each_condition[NM…DMG]` (offer math and HTTP), `test_card_below_minimum_is_not_bought` (both), `test_card_without_price_then_manual_price` |
 | [AUTO] No percentage, factor, or minimum hardcoded outside `config/` and `.env` | **PASS** | `test_no_business_numbers_hardcoded_outside_config` scans the pricing code for the values in `reglas.yaml`. A repo-wide search found two leftover crop thresholds (0.9, 0.6) in `crop.py`; they're now in `reglas.yaml` too |
 
-Tests: 151 pass (`python -m pytest -q`). The price and Banxico clients are tested on recorded responses and never call the network.
+Tests: 152 pass (`python -m pytest -q`). The price and Banxico clients are tested on recorded responses and never call the network.
 
 ### [MANUAL] for the owner
 
-1. **Put a Banxico token in `.env`** (`BANXICO_TOKEN`). It's free at https://www.banxico.org.mx/SieAPIRest/service/v1/token. Without it, `POST /sessions` returns 503 `fx_unavailable` while `CONVERT_TO_MXN=true`. The live Banxico call isn't verified yet, since there's no token here.
+1. **Banxico token: done and tested live.** The real token is in `.env` (git-ignored). A full session through the running server:
+   - **Rate:** SF43718 = 18.4888 MXN/USD, published 2026-10-14.
+   - **Mega Floette ex** (US$23.24): market $429.68, cash $365.23, credit $386.71.
+   - **Gastly** (US$91.16): cash $1,432.62. After switching it to LP: $1,217.73.
+   - **Charmander** (US$0.26): $4.09, below the $10 minimum, so marked "not buying".
+   - **Gimmighoul:** no price.
+   - **Totals:** $1,582.96 cash and $1,676.07 credit.
+
+   A bad token now shows Banxico's own message ("Token inválido") instead of a bare HTTP 400.
 2. **Set the real condition factors and minimum** with the shop in `config/reglas.yaml`. They're provisional and marked `TODO`: NM 1.0 · LP 0.85 · MP 0.70 · HP 0.50 · DMG 0.30; minimum $10.00 MXN / US$0.50, compared to the cash offer.
 3. **Optional: a pokemontcg.io API key** (`POKEMONTCG_API_KEY`) for higher rate limits on the backup source.
 
