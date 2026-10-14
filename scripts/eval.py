@@ -30,7 +30,7 @@ sys.path.insert(0, str(ROOT))
 
 from scanner import index as faiss_index  # noqa: E402
 from scanner.crop import crop_card  # noqa: E402
-from scanner.embedders import MODELS, load_embedder  # noqa: E402
+from scanner.embedders import MODELS, embed_cards, load_embedder  # noqa: E402
 from scanner.evaluation import Result, Summary, card_id_from_filename, list_photos, summarize  # noqa: E402
 
 try:  # iPhone photos
@@ -57,7 +57,7 @@ def identify(photo_path: Path, embedder, index, ids, flip: bool) -> tuple[list[t
     card, found = crop_card(bgr)
     pil = Image.fromarray(cv2.cvtColor(card, cv2.COLOR_BGR2RGB))
     views = [pil, pil.rotate(180)] if flip else [pil]
-    vectors = embedder.embed(views)
+    vectors = embed_cards(embedder, views)
     best: dict[str, float] = {}
     for v in vectors:
         for cid, score in faiss_index.search(index, ids, v, SEARCH_K):
