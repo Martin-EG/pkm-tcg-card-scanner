@@ -42,34 +42,45 @@ Spanish and Japanese catalogs are deferred for now. Cards printed in those langu
 ## Project structure
 
 ```
-app/                      Counter app for the phone (React + Vite PWA, Mexican Spanish UI), served by the API
-config/reglas.yaml        Business rules and every tunable threshold (shares, factors, minimum, crop, OCR)
-.env.example              Server settings: languages, USD→MXN conversion, API keys
-scanner/
-  api.py                  FastAPI app: /identify, /corrections, /sessions, /settings
-  crop.py                 Card detection and perspective correction (1–9 cards per photo)
-  embedders.py            DINOv2 / CLIP image embeddings (whole card + artwork box)
-  index.py                FAISS index per model and language
-  identify.py             Photo → cards: crop, embed, search, OCR re-rank, review flags
-  ocr.py                  PaddleOCR reading and parsing of set code, number, language
-  catalog.py              Catalog rows joined with set info (printed code, set size)
-  offer.py                Offer formula
-  sessions.py             Buy sessions: cards, prices, offers, totals
-  pricing/                TCGdex and pokemontcg.io price clients, set mapping, daily price cache, Banxico, eBay link, rules
-  db.py                   SQLite schema: scans, corrections, price cache, FX rates, sessions
-  settings.py, config.py  .env and reglas.yaml loaders
+app/                        Phone app (React + Vite PWA, Mexican Spanish UI), served by the server
+server/                     Python server (FastAPI)
+  main.py                   Entry point: uvicorn server.main:app
+  paths.py                  Where data, config, certificates and the built app live
+  config/
+    settings.py             .env loader (languages, USD→MXN, API tokens)
+    rules.py                reglas.yaml loader and validated pricing rules
+  api/
+    app.py                  App factory: wires services, error handlers, mounts the phone app
+    deps.py, schemas.py     Shared services for routes; request bodies
+    routes/                 identify.py · sessions.py · settings.py · files.py
+  recognition/              Photo → card
+    crop.py                 Card detection and perspective correction (1–9 cards, blur and no-card errors)
+    embedders.py, index.py  DINOv2 / CLIP embeddings and the FAISS index per language
+    ocr.py                  PaddleOCR: set code, number, language
+    catalog.py              Catalog rows joined with set info (printed code, set size)
+    identify.py             Crop → embed → search → OCR re-rank → review flags
+  pricing/                  Card → price → offer
+    tcgdex.py               Main price source (TCGplayer market price via TCGdex)
+    pokemontcg.py           Backup price source (pokemontcg.io) · setmap.py: its set mapping
+    prices.py               Provider order and daily price cache
+    quote.py                Shared price model and "unavailable" error
+    fx.py, ebay.py          Banxico exchange rate · eBay sold-items link
+    offer.py                Offer formula
+  sessions/service.py       Buy sessions: cards, prices, offers, totals
+  storage/db.py             SQLite schema: scans, corrections, price cache, FX rates, sessions
+config/reglas.yaml          Business rules and every tunable threshold (shares, factors, minimum, crop, OCR)
+.env.example                Server settings: languages, USD→MXN conversion, API keys
 scripts/
-  fetch_catalog.py        Download the TCGdex catalog and card images (resumable)
-  build_index.py          Embed the catalog into a FAISS index
-  eval.py                 Phase 0 evaluation (image only)
-  eval_phase1.py          Phase 1 QA gate (accuracy, page time, reprints, errors, languages)
-  fix_macos_openmp.sh     macOS only: make faiss and torch share one OpenMP runtime
-  make_cert.py            Local HTTPS certificate for the shop network (see below)
-tests/                    pytest suite; network calls are faked or recorded
-photos/                   Labeled test photos (<tcgdex id>.heic), binder pages, Spanish cards
-docs/                     MVP, phase plan, per-phase results
-reports/                  Evaluation output committed with each phase
-data/                     Catalog, images, indexes, SQLite (git-ignored, ~2 GB)
+  fetch_catalog.py          Download the TCGdex catalog and card images (resumable)
+  build_index.py            Embed the catalog into a FAISS index
+  eval.py, eval_phase1.py   Phase 0 and Phase 1 QA evaluations (evaluation.py: shared helpers)
+  make_cert.py              Local HTTPS certificate for the shop network (see below)
+  fix_macos_openmp.sh       macOS only: make faiss and torch share one OpenMP runtime
+tests/                      pytest suite, grouped like server/ (recognition, pricing, api, config, scripts)
+photos/                     Labeled test photos (<tcgdex id>.heic), binder pages, Spanish cards
+docs/                       MVP, phase plan, per-phase results (Phase 0–2 docs use the old scanner/ paths)
+reports/                    Evaluation output committed with each phase
+data/                       Catalog, images, indexes, SQLite, certificates (git-ignored, ~2 GB)
 ```
 
 ## Getting started
@@ -138,7 +149,7 @@ It creates a small certificate authority for the shop (`data/certs/ca.pem`, made
 ### 6. Run the server
 
 ```bash
-uvicorn scanner.api:app --host 0.0.0.0 --port 8443 --ssl-certfile data/certs/server.pem --ssl-keyfile data/certs/server.key
+uvicorn server.main:app --host 0.0.0.0 --port 8443 --ssl-certfile data/certs/server.pem --ssl-keyfile data/certs/server.key
 ```
 
 Interactive API docs are at `/docs`.

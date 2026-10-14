@@ -31,9 +31,9 @@ import torch
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from scanner.crop import PhotoError, find_card_quad, warp_card  # noqa: E402
-from scanner.evaluation import card_id_from_filename, list_photos  # noqa: E402
-from scanner.identify import Identifier  # noqa: E402
+from server.recognition.crop import PhotoError, find_card_quad, warp_card  # noqa: E402
+from scripts.evaluation import card_id_from_filename, list_photos  # noqa: E402
+from server.recognition.identify import Identifier  # noqa: E402
 from scripts.eval import load_photo  # noqa: E402
 
 PHASE0_TOP1 = 0.976
