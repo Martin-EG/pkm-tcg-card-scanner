@@ -1,12 +1,17 @@
-"""Download the English TCGdex catalog (recent sets) with high-resolution card images.
+"""Download a TCGdex catalog (English, Spanish, or Japanese) with high-resolution card images.
 
 Usage:
-    python scripts/fetch_catalog.py                 # sets released in the last 3 years
-    python scripts/fetch_catalog.py --since 2024-01-01
+    python scripts/fetch_catalog.py                 # English sets released in the last 3 years
+    python scripts/fetch_catalog.py --since 1999-01-01
+    python scripts/fetch_catalog.py --lang es --since 1999-01-01
     python scripts/fetch_catalog.py --sets sv06 svp # explicit sets, ignores dates
 
-Writes data/catalog_en.jsonl (one card per line) and data/images/en/<set>/<card>.webp.
+Writes data/catalog_<lang>.jsonl (one card per line) and data/images/<lang>/<set>/<card>.webp,
+plus data/cache/sets_<lang>.json with each set's date, printed code, and printed size.
 Safe to interrupt: re-running skips cards whose row and image already exist.
+
+Talks to the TCGdex REST API directly: the Python SDK fails to parse some Spanish
+and Japanese sets and doesn't expose the printed set code.
 """
 
 from __future__ import annotations
@@ -20,13 +25,36 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 from pathlib import Path
 from urllib.error import HTTPError, URLError
+from urllib.parse import quote
+from urllib.request import Request, urlopen
 
-from tcgdexsdk import TCGdex
-
-LANG = "en"
+LANGUAGES = ("en", "es", "ja")
 # TCG Pocket is a mobile game; its cards are never physical.
 EXCLUDED_SERIES = {"tcgp"}
 ROOT = Path(__file__).resolve().parent.parent
+API = "https://api.tcgdex.net/v2"
+USER_AGENT = "tcg-buylist-scanner/0.1 (catalog fetch)"
+
+
+class TcgdexClient:
+    """Minimal TCGdex REST client for one language."""
+
+    def __init__(self, lang: str, timeout: float = 30.0):
+        self.lang = lang
+        self.timeout = timeout
+
+    def _get(self, url: str) -> bytes:
+        with urlopen(Request(url, headers={"User-Agent": USER_AGENT}), timeout=self.timeout) as r:
+            return r.read()
+
+    def list_sets(self) -> list[dict]:
+        return json.loads(self._get(f"{API}/{self.lang}/sets"))
+
+    def get_set(self, set_id: str) -> dict:
+        return json.loads(self._get(f"{API}/{self.lang}/sets/{quote(set_id)}"))
+
+    def get_image(self, card: dict) -> bytes:
+        return self._get(f"{card['image']}/high.webp")
 
 
 class RateLimiter:
@@ -105,15 +133,27 @@ def compact_catalog(catalog_path: Path, root: Path) -> int:
     return len(rows)
 
 
-def load_set_dates(sdk: TCGdex, cache_path: Path, limiter: RateLimiter) -> dict[str, dict]:
-    """{set_id: {releaseDate, serie}} for every English set; cached on disk."""
+# Keys every cached set entry must have; older cache entries missing one are fetched again.
+SET_KEYS = ("releaseDate", "serie", "name", "abbreviation", "official_count")
+
+
+def load_set_dates(client: TcgdexClient, cache_path: Path, limiter: RateLimiter) -> dict[str, dict]:
+    """{set_id: {releaseDate, serie, name, abbreviation, official_count}} for every set in
+    the client's language; cached on disk. abbreviation is the printed set code (e.g. "MEE")
+    and official_count the printed set size (the 131 of 022/131); both feed the OCR step."""
     cache: dict[str, dict] = json.loads(cache_path.read_text()) if cache_path.exists() else {}
-    resumes = with_retries(lambda: sdk.set.listSync(), limiter)
-    missing = [s.id for s in resumes if s.id not in cache]
+    listed = with_retries(client.list_sets, limiter)
+    missing = [s["id"] for s in listed if not all(k in cache.get(s["id"], {}) for k in SET_KEYS)]
     for i, set_id in enumerate(missing, 1):
         print(f"  set info {i}/{len(missing)}: {set_id}")
-        s = with_retries(lambda: sdk.set.getSync(set_id), limiter)
-        cache[set_id] = {"releaseDate": s.releaseDate, "serie": s.serie.id, "name": s.name}
+        s = with_retries(lambda: client.get_set(set_id), limiter)
+        cache[set_id] = {
+            "releaseDate": s.get("releaseDate"),
+            "serie": (s.get("serie") or {}).get("id"),
+            "name": s.get("name"),
+            "abbreviation": (s.get("abbreviation") or {}).get("official"),
+            "official_count": (s.get("cardCount") or {}).get("official"),
+        }
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_text(json.dumps(cache, indent=1))
     return cache
@@ -128,10 +168,10 @@ def select_sets(set_info: dict[str, dict], since: date) -> list[str]:
     return sorted(chosen, key=lambda sid: (set_info[sid]["releaseDate"], sid))
 
 
-def download_card_image(card, dest: Path, limiter: RateLimiter) -> bool:
-    if not card.image:
+def download_card_image(client: TcgdexClient, card: dict, dest: Path, limiter: RateLimiter) -> bool:
+    if not card.get("image"):
         return False
-    data = with_retries(lambda: card.get_image("high", "webp").read(), limiter)
+    data = with_retries(lambda: client.get_image(card), limiter)
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = dest.with_suffix(".part")
     tmp.write_bytes(data)
@@ -141,6 +181,7 @@ def download_card_image(card, dest: Path, limiter: RateLimiter) -> bool:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--lang", choices=LANGUAGES, default="en")
     ap.add_argument("--since", type=date.fromisoformat, default=date.today() - timedelta(days=3 * 365))
     ap.add_argument("--sets", nargs="*", help="explicit set ids (skips the date filter)")
     ap.add_argument("--data-dir", type=Path, default=ROOT / "data")
@@ -150,8 +191,9 @@ def main(argv: list[str] | None = None) -> int:
 
     data_dir: Path = args.data_dir
     data_dir.mkdir(parents=True, exist_ok=True)
-    catalog_path = data_dir / f"catalog_{LANG}.jsonl"
-    sdk = TCGdex(LANG)
+    lang = args.lang
+    catalog_path = data_dir / f"catalog_{lang}.jsonl"
+    client = TcgdexClient(lang)
     limiter = RateLimiter(args.rate)
 
     kept = compact_catalog(catalog_path, ROOT)
@@ -161,21 +203,22 @@ def main(argv: list[str] | None = None) -> int:
     if args.sets:
         set_ids = args.sets
     else:
-        set_info = load_set_dates(sdk, data_dir / "cache" / f"sets_{LANG}.json", limiter)
+        set_info = load_set_dates(client, data_dir / "cache" / f"sets_{lang}.json", limiter)
         set_ids = select_sets(set_info, args.since)
         print(f"{len(set_ids)} sets released since {args.since}: {' '.join(set_ids)}")
 
     added = no_image = 0
     with catalog_path.open("a", encoding="utf-8") as out:
         for set_id in set_ids:
-            s = with_retries(lambda: sdk.set.getSync(set_id), limiter)
-            todo = [c for c in s.cards if c.id not in done]
-            print(f"{set_id} ({s.name}): {len(s.cards)} cards, {len(todo)} to download")
+            s = with_retries(lambda: client.get_set(set_id), limiter)
+            cards = s.get("cards", [])
+            todo = [c for c in cards if c["id"] not in done]
+            print(f"{set_id} ({s['name']}): {len(cards)} cards, {len(todo)} to download")
 
             def fetch(card):
-                dest = (data_dir / "images" / LANG / set_id / f"{card.id}.webp").resolve()
+                dest = (data_dir / "images" / lang / set_id / f"{card['id']}.webp").resolve()
                 try:
-                    return card, dest, download_card_image(card, dest, limiter)
+                    return card, dest, download_card_image(client, card, dest, limiter)
                 except HTTPError as e:
                     if e.code != 404:
                         raise
@@ -186,20 +229,20 @@ def main(argv: list[str] | None = None) -> int:
                 for card, dest, ok in pool.map(fetch, todo):
                     if not ok:
                         no_image += 1
-                        print(f"  {card.id}: no image on TCGdex, skipped")
+                        print(f"  {card['id']}: no image on TCGdex, skipped")
                         continue
                     row = {
-                        "id": card.id,
-                        "name": card.name,
+                        "id": card["id"],
+                        "name": card["name"],
                         "set": set_id,
-                        "set_name": s.name,
-                        "number": card.localId,
-                        "language": LANG,
+                        "set_name": s["name"],
+                        "number": card["localId"],
+                        "language": lang,
                         "image_path": str(dest.relative_to(ROOT)) if dest.is_relative_to(ROOT) else str(dest),
                     }
                     out.write(json.dumps(row, ensure_ascii=False) + "\n")
                     out.flush()
-                    done.add(card.id)
+                    done.add(card["id"])
                     added += 1
 
     total = compact_catalog(catalog_path, ROOT)

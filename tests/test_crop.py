@@ -76,3 +76,76 @@ def test_no_card_falls_back_to_full_photo():
     out, found = crop_card(photo)
     assert not found
     assert out is photo
+
+
+# --- Multi-card photos and photo errors ---------------------------------------------
+
+import scanner.crop as crop_module  # noqa: E402
+from scanner.crop import PhotoError, crop_cards  # noqa: E402
+
+
+def colored_card(i: int, w=630, h=880):
+    """synthetic_card with a different art color per card, so order can be checked."""
+    card = synthetic_card(w, h)
+    color = [(200, 80, 30), (30, 160, 60), (40, 40, 200), (160, 40, 160), (20, 160, 200),
+             (120, 120, 20), (90, 30, 30), (200, 200, 60), (60, 60, 60)][i % 9]
+    cv2.rectangle(card, (60, 120), (w - 60, 480), color, -1)
+    return card
+
+
+def binder_page(rows=3, cols=3, card_h=300, gap=36, margin=60, pockets=True):
+    """Cards in a grid on a dark page, optionally with visible pocket outlines."""
+    card_w = int(card_h * 63 / 88)
+    W = margin * 2 + cols * card_w + (cols - 1) * gap
+    H = margin * 2 + rows * card_h + (rows - 1) * gap
+    page = np.full((H, W, 3), (35, 35, 40), np.uint8)
+    page = cv2.add(page, np.random.default_rng(1).integers(0, 12, page.shape, dtype=np.uint8))
+    for r in range(rows):
+        for c in range(cols):
+            x = margin + c * (card_w + gap)
+            y = margin + r * (card_h + gap)
+            if pockets:
+                cv2.rectangle(page, (x - 10, y - 10), (x + card_w + 10, y + card_h + 10), (90, 90, 95), 2)
+            card = cv2.resize(colored_card(r * cols + c), (card_w, card_h), interpolation=cv2.INTER_AREA)
+            page[y:y + card_h, x:x + card_w] = card
+    return page
+
+
+def art_color(card):
+    return card[300, OUT_W // 2].astype(int)
+
+
+@pytest.mark.parametrize("pockets", [False, True])
+def test_binder_page_gives_nine_cards_in_reading_order(pockets):
+    cards = crop_cards(binder_page(pockets=pockets))
+    assert len(cards) == 9
+    for i, card in enumerate(cards):
+        assert card.shape[:2] == (OUT_H, OUT_W)
+        want = np.array(colored_card(i)[300, 315], int)
+        assert np.abs(art_color(card) - want).max() < 40, f"card {i} out of order"
+
+
+def test_two_cards_on_a_table():
+    cards = crop_cards(binder_page(rows=1, cols=2, card_h=500, gap=120, pockets=False))
+    assert len(cards) == 2
+
+
+def test_single_card_still_uses_single_path(monkeypatch):
+    # The flat synthetic photo is far smoother than a real one; only the crop path is under test.
+    monkeypatch.setitem(crop_module._QUALITY, "min_sharpness", 0.0)
+    photo, _ = place_on_background(synthetic_card(), 8)
+    assert len(crop_cards(photo)) == 1
+
+
+def test_no_card_raises():
+    with pytest.raises(PhotoError) as e:
+        crop_cards(cv2.add(np.full((800, 600, 3), 128, np.uint8),
+                           np.random.default_rng(2).integers(0, 30, (800, 600, 3), dtype=np.uint8)))
+    assert e.value.code == "no_card"
+
+
+def test_blurry_photo_raises():
+    photo, _ = place_on_background(synthetic_card(), 8)
+    with pytest.raises(PhotoError) as e:
+        crop_cards(cv2.GaussianBlur(photo, (0, 0), 12))
+    assert e.value.code == "blurry"

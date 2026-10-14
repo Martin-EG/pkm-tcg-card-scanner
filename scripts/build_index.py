@@ -34,7 +34,8 @@ def read_catalog(path: Path) -> list[dict]:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--model", choices=MODELS, required=True)
-    ap.add_argument("--catalog", type=Path, default=ROOT / "data" / "catalog_en.jsonl")
+    ap.add_argument("--lang", choices=("en", "es", "ja"), default="en")
+    ap.add_argument("--catalog", type=Path, help="default: data/catalog_<lang>.jsonl")
     ap.add_argument("--index-dir", type=Path, default=ROOT / "data" / "index")
     ap.add_argument("--batch-size", type=int, default=32)
     ap.add_argument("--threads", type=int, default=0, help="torch CPU threads (0 = default)")
@@ -42,6 +43,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.threads:
         torch.set_num_threads(args.threads)
+    args.catalog = args.catalog or ROOT / "data" / f"catalog_{args.lang}.jsonl"
     rows = read_catalog(args.catalog)
     print(f"{len(rows)} cards in {args.catalog}")
     embedder = load_embedder(args.model)
@@ -64,8 +66,9 @@ def main(argv: list[str] | None = None) -> int:
 
     vectors = np.concatenate(chunks)
     idx = faiss_index.build(vectors)
-    faiss_index.save(idx, ids, args.index_dir, args.model)
-    print(f"saved {idx.ntotal} x {vectors.shape[1]} vectors to {faiss_index.index_paths(args.index_dir, args.model)[0]}")
+    faiss_index.save(idx, ids, args.index_dir, args.model, args.lang)
+    print(f"saved {idx.ntotal} x {vectors.shape[1]} vectors to "
+          f"{faiss_index.index_paths(args.index_dir, args.model, args.lang)[0]}")
     return 0
 
 

@@ -8,6 +8,8 @@ import numpy as np
 import torch
 from PIL import Image
 
+from scanner.config import rules
+
 MODELS = ("clip", "dinov2")
 
 # Card images are squashed to a square instead of center-cropped, so the whole card
@@ -94,12 +96,9 @@ def load_embedder(name: str) -> Embedder:
     raise ValueError(f"unknown model {name!r}; choose from {MODELS}")
 
 
-# The artwork box of a modern card, as (left, top, right, bottom) fractions.
-# Reverse-holo foil, promo stamps, and imperfect crops change the rest of the card
-# but not the artwork, so it gets an embedding of its own.
-ART_BOX = (0.08, 0.10, 0.92, 0.52)
-# Share of the similarity score that comes from the artwork box.
-ART_WEIGHT = 0.5
+# Artwork box and its share of the score; see identification in config/reglas.yaml.
+ART_BOX = tuple(rules()["identification"]["art_box"])
+ART_WEIGHT = rules()["identification"]["art_weight"]
 
 
 def artwork(card: Image.Image) -> Image.Image:

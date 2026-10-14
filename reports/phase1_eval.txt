@@ -1,0 +1,49 @@
+1. Phase 0 photos: top-1 100.0%  top-3 100.0%  (41 scored)  max 1.94s  marked for review: 2
+2. Pages:
+   IMG_3767.HEIC: 6 cards in 4.53s (OCR on 6)
+      xy6-64 Zekrom (0.689) flag=ja REVIEW
+      swsh11-183 Galarian Perrserker V (0.668) flag=es REVIEW
+      sv10-190 Ethan's Typhlosion (0.795)
+      sv01-203 Armarouge (0.707)
+      sv10.5w-098 Emboar (0.687)
+      sv09-172 Iono's Bellibolt ex (0.814)
+   IMG_3770.HEIC: 4 cards in 1.99s (OCR on 4)
+      base2-55 Mankey (0.675) REVIEW
+      ex12-57 Machop (0.814)
+      det1-13 Machamp (0.680)
+      sv10.5w-052 Mienfoo (0.598) REVIEW
+   synthetic 9-card page: 9 cards, 9/9 correct, 7.35s (OCR on 9)
+   synthetic 9-card page: 9 cards, 9/9 correct, 7.10s (OCR on 9)
+   synthetic 9-card page: 9 cards, 9/9 correct, 5.90s (OCR on 9)
+3. Same-art reprints:
+   real me04-012.heic: rank 1 ocr=True
+   real me04-015.heic: rank 1 ocr=True
+   real me04-043.heic: rank 1 ocr=True
+   real me04-053.heic: rank 1 ocr=True
+   real me04-082.heic: rank 1 ocr=True
+   real sv03.5-004.heic: rank 1 ocr=True
+   real sv03.5-056.heic: rank 1 ocr=True
+   real sv03.5-059.heic: rank 1 ocr=True
+   real sv03.5-062.heic: rank 1 ocr=True
+   real sv03.5-137.heic: rank 1 ocr=True
+   real sv04-142.heic: rank 1 ocr=True
+   real sv08.5-022.heic: rank 1 ocr=True
+   real sv09-172.heic: rank 1 ocr=True
+   synthetic bw11-54 vs bw4-54 (sim 1.0): top1 bw11-54 OK  read ['54']
+   synthetic bw4-54 vs bw11-54 (sim 1.0): top1 bw4-54 OK  read ['54']
+   synthetic sv07-128 vs sv08.5-092 (sim 0.9981): top1 sv07-128 OK  read ['128', 'SCR']
+   synthetic sv08.5-092 vs sv07-128 (sim 0.9981): top1 sv08.5-092 OK  read ['92', 'PRE']
+   synthetic g1-48 vs xy3-48 (sim 0.9958): top1 g1-48 OK  read ['48']
+   synthetic xy3-48 vs g1-48 (sim 0.9958): top1 xy3-48 OK  read ['48']
+   synthetic sv06.5-020 vs sv08.5-037 (sim 0.994): top1 sv06.5-020 OK  read ['20', 'SFA']
+   synthetic sv08.5-037 vs sv06.5-020 (sim 0.994): top1 sv08.5-037 OK  read ['37', 'PRE']
+   synthetic base4-39 vs lc-23 (sim 0.9837): top1 base4-39 OK  read []
+   synthetic lc-23 vs base4-39 (sim 0.9837): top1 lc-23 OK  read ['23']
+   synthetic correct: 10/10
+4. Errors:
+   photos/binder/IMG_3771.HEIC: expected no_card, got no_card -> PASS
+   photos/binder/IMG_3772.HEIC: expected blurry, got blurry -> PASS
+5. Languages other than English in results: none
+   sv09-163.heic: flagged es, top1 sv09-163, read ['Kilowattreldee-Nigma', '120', '', 'lus. Teroda.Tera', 'comer', 'JTGIA', 'SUR', '163/159', '55']
+   svp-189.heic: flagged es, top1 svp-189, read ['Zoruade N', '700', 'Hlus. Megumi Mizutoni', 'Setrans', 'I SVPA189 ', 'men']
+report: /Users/martinespericueta/Desktop/pkm-tcg-card-scanner/reports/phase1_eval.json

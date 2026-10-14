@@ -5,3 +5,6 @@ __pycache__/
 data/
 reports/
 .DS_Store
+data
+data.nosync/
+.env
