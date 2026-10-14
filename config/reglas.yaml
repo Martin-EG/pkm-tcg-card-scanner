@@ -1,0 +1,97 @@
+# Business rules and tunable parameters. Code reads every value from here.
+
+crop:
+  # Pokémon cards are 63 x 88 mm.
+  card_aspect: 0.716
+  # Allowed relative deviation from card_aspect (perspective, sleeves).
+  max_aspect_error: 0.25
+  # Cropped cards are warped to this size.
+  out_width: 630
+  out_height: 880
+  # Single-card path: GrabCut segmentation on a copy this size.
+  segment_max_side: 256
+  grabcut_iterations: 3
+  seed_margin: 0.04
+  # A single card must cover at least this fraction of the photo.
+  single_min_area_fraction: 0.08
+  # Multi-card path (binder pages, several cards on a table).
+  detect_max_side: 1000
+  max_cards: 9
+  # Each card of a multi-card photo must cover at least this fraction of the photo.
+  multi_min_area_fraction: 0.015
+  # Cards of one photo are roughly the same size: drop candidates smaller than this
+  # fraction of the median candidate.
+  multi_min_relative_area: 0.5
+  # Largest / smallest card area allowed among the cards of one photo.
+  multi_max_area_ratio: 2.0
+  # Every corner of a card outline must be within this many degrees of 90.
+  multi_max_corner_deviation_deg: 18
+  # Share of the outline's perimeter that must lie on detected edges.
+  multi_min_edge_support: 0.6
+  # Bright-region candidates (cards on a dark binder page): the filled region must
+  # cover at least this share of its rectangle.
+  multi_min_fill: 0.85
+
+quality:
+  # Variance of the Laplacian on the grayscale photo resized to quality_max_side.
+  # Below this the photo is rejected as blurry.
+  min_sharpness: 180.0
+  quality_max_side: 800
+
+identification:
+  model: dinov2
+  # Visual candidates fetched per card before the OCR re-rank.
+  candidates: 10
+  top_k: 3
+  # Search the crop upright and rotated 180°; best score per card wins.
+  try_flipped: true
+  # A single-card photo whose top match is below this similarity is reported as
+  # "no card found" (an empty binder pocket, a table).
+  min_score: 0.45
+  # Below this score (similarity plus the OCR bonus when the printed number and set
+  # agree) a card is marked for the employee to review. Wrong matches in the Phase 1
+  # binder photos scored 0.60-0.69; right ones confirmed by text 0.83+. Old cards
+  # whose text isn't read can be right and still land below (Jungle Mankey: 0.675).
+  review_score: 0.75
+  # The artwork box of a modern card, as (left, top, right, bottom) fractions. It gets
+  # an embedding of its own: foil, promo stamps and imperfect crops change the rest of
+  # the card but not the artwork. Rebuild the indexes after changing either value.
+  art_box: [0.08, 0.10, 0.92, 0.52]
+  # Share of the similarity score that comes from the artwork box.
+  art_weight: 0.5
+
+ocr:
+  # PaddleOCR mobile models (CPU). The English recognizer reads the bottom strip
+  # (codes, numbers) best; the multilingual one reads the name bar, where Japanese
+  # script flags Japanese cards.
+  detection_model: PP-OCRv5_mobile_det
+  recognition_model: en_PP-OCRv5_mobile_rec
+  name_recognition_model: PP-OCRv5_mobile_rec
+  # Kana characters needed in the name bar to call a card Japanese (the multilingual
+  # recognizer emits a stray CJK character now and then on English cards).
+  min_kana: 2
+  # Name bar of the upright card (fractions of its height), read for the language:
+  # Japanese script, Spanish stage words (BÁSICO, FASE 1), or English (BASIC, STAGE 1).
+  name_strip: [0.03, 0.10]
+  # Bottom strip of the upright card, as fractions of its height.
+  strip_top: 0.92
+  strip_bottom: 0.985
+  # Horizontal regions read in order (fractions of the width); the second is read
+  # only when the first gives no collector number (older cards print it bottom right).
+  regions: [[0.0, 0.5], [0.5, 1.0]]
+  # Read every card, so cards printed in a language without a catalog (Spanish and
+  # Japanese for now) can be flagged; artwork is shared, so only the text tells.
+  # When false, OCR runs only when the visual result is ambiguous: another top
+  # candidate has the same name as the first, or the top two scores are this close.
+  read_every_card: true
+  ambiguous_margin: 0.03
+  # Printed set codes shorter than this are ignored (avoids hits on ordinary words).
+  min_code_length: 3
+  # Exact text matches added to the visual candidates when there are this many or fewer.
+  max_lookup_results: 10
+  # Added to the similarity score when the text agrees with a candidate.
+  weights:
+    number: 0.10
+    total: 0.05
+    set_code: 0.08
+    language: 0.06

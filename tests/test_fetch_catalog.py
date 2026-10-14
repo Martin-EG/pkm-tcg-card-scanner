@@ -1,50 +1,39 @@
 import json
 from datetime import date
-from types import SimpleNamespace
 
 import pytest
 
 import scripts.fetch_catalog as fc
 
 
-class FakeImage:
-    def __init__(self, data):
-        self.data = data
+class FakeClient:
+    """Stands in for TcgdexClient: one set, the third card has no image."""
 
-    def read(self):
-        return self.data
+    def __init__(self, lang):
+        self.lang = lang
+        self.cards = [
+            {"id": "s1-001", "localId": "001", "name": "A", "image": "https://example/s1-001"},
+            {"id": "s1-002", "localId": "002", "name": "B", "image": "https://example/s1-002"},
+            {"id": "s1-003", "localId": "003", "name": "C"},
+        ]
+        self.downloads = {}
 
+    def get_set(self, set_id):
+        return {"id": "s1", "name": "Set One", "cards": self.cards}
 
-class FakeCard:
-    def __init__(self, cid, local_id, name, has_image=True):
-        self.id, self.localId, self.name = cid, local_id, name
-        self.image = f"https://example/{cid}" if has_image else None
-        self.downloads = 0
-
-    def get_image(self, quality, ext):
-        assert (quality, ext) == ("high", "webp")
-        self.downloads += 1
-        return FakeImage(b"img-" + self.id.encode())
-
-
-class FakeSetEndpoint:
-    def __init__(self, sets):
-        self.sets = sets
-
-    def getSync(self, set_id):
-        return self.sets[set_id]
+    def get_image(self, card):
+        self.downloads[card["id"]] = self.downloads.get(card["id"], 0) + 1
+        return b"img-" + card["id"].encode()
 
 
 @pytest.fixture
-def fake_sdk(monkeypatch):
-    cards = [FakeCard("s1-001", "001", "A"), FakeCard("s1-002", "002", "B"), FakeCard("s1-003", "003", "C", False)]
-    sets = {"s1": SimpleNamespace(id="s1", name="Set One", cards=cards)}
-    sdk = SimpleNamespace(set=FakeSetEndpoint(sets))
-    monkeypatch.setattr(fc, "TCGdex", lambda lang: sdk)
-    return cards
+def fake_client(monkeypatch):
+    client = FakeClient("en")
+    monkeypatch.setattr(fc, "TcgdexClient", lambda lang: client)
+    return client
 
 
-def test_download_and_resume(tmp_path, monkeypatch, fake_sdk):
+def test_download_and_resume(tmp_path, monkeypatch, fake_client):
     monkeypatch.setattr(fc, "ROOT", tmp_path)
     data = tmp_path / "data"
     assert fc.main(["--sets", "s1", "--data-dir", str(data), "--rate", "0"]) == 0
@@ -63,8 +52,8 @@ def test_download_and_resume(tmp_path, monkeypatch, fake_sdk):
         f.write('{"id": "s1-00')
     assert fc.main(["--sets", "s1", "--data-dir", str(data), "--rate", "0"]) == 0
 
-    assert fake_sdk[0].downloads == 1  # not downloaded again
-    assert fake_sdk[1].downloads == 2  # re-downloaded
+    assert fake_client.downloads["s1-001"] == 1  # not downloaded again
+    assert fake_client.downloads["s1-002"] == 2  # re-downloaded
     rows = [json.loads(l) for l in (data / "catalog_en.jsonl").read_text().splitlines()]
     assert sorted(r["id"] for r in rows) == ["s1-001", "s1-002"]
 
@@ -94,3 +83,18 @@ def test_with_retries_backs_off_on_429(monkeypatch):
 
     assert fc.with_retries(flaky, fc.RateLimiter(0)) == "ok"
     assert sleeps == [2, 4]
+
+
+def test_set_info_keeps_printed_code_and_size(tmp_path):
+    class Client:
+        def list_sets(self):
+            return [{"id": "sv01"}]
+
+        def get_set(self, set_id):
+            return {"id": "sv01", "name": "Scarlet & Violet", "releaseDate": "2023-03-31",
+                    "serie": {"id": "sv"}, "abbreviation": {"official": "SVI"},
+                    "cardCount": {"official": 198, "total": 258}}
+
+    info = fc.load_set_dates(Client(), tmp_path / "sets.json", fc.RateLimiter(0))
+    assert info["sv01"]["abbreviation"] == "SVI"
+    assert info["sv01"]["official_count"] == 198
