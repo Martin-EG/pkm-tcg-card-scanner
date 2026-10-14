@@ -124,7 +124,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"server certificate for: {', '.join(dict.fromkeys(hosts))}")
     print(f"  {pem}\n  {key}")
     print(("new" if new_ca else "existing") + f" shop authority: {args.out / 'ca.pem'}  (install on each phone)")
-    print("start the server with:\n  uvicorn scanner.api:app --host 0.0.0.0 --port 8443 "
+    print("start the server with:\n  uvicorn server.main:app --host 0.0.0.0 --port 8443 "
           f"--ssl-certfile {pem} --ssl-keyfile {key}")
     return 0
 

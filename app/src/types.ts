@@ -1,4 +1,4 @@
-// Shapes returned by the shop server (scanner/api.py).
+// Shapes returned by the shop server (server/api/routes/).
 
 export type Currency = 'MXN' | 'USD'
 

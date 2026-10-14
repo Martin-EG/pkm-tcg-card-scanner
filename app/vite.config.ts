@@ -3,7 +3,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// Paths served by the shop server (scanner/api.py); proxied during `npm run dev`.
+// Paths served by the shop server (server/api/routes/); proxied during `npm run dev`.
 const API = ['/settings', '/identify', '/corrections', '/sessions', '/images', '/scans', '/certificado']
 
 export default defineConfig({

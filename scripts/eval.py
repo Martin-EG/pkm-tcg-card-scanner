@@ -30,10 +30,10 @@ from PIL import Image, ImageOps
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from scanner import index as faiss_index  # noqa: E402
-from scanner.crop import crop_card  # noqa: E402
-from scanner.embedders import MODELS, embed_cards, load_embedder  # noqa: E402
-from scanner.evaluation import Result, Summary, card_id_from_filename, list_photos, summarize  # noqa: E402
+from server.recognition import index as faiss_index  # noqa: E402
+from server.recognition.crop import crop_card  # noqa: E402
+from server.recognition.embedders import MODELS, embed_cards, load_embedder  # noqa: E402
+from scripts.evaluation import Result, Summary, card_id_from_filename, list_photos, summarize  # noqa: E402
 
 try:  # iPhone photos
     from pillow_heif import register_heif_opener

@@ -22,8 +22,8 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from scanner import index as faiss_index  # noqa: E402
-from scanner.embedders import MODELS, embed_cards, load_embedder  # noqa: E402
+from server.recognition import index as faiss_index  # noqa: E402
+from server.recognition.embedders import MODELS, embed_cards, load_embedder  # noqa: E402
 
 
 def read_catalog(path: Path) -> list[dict]:
