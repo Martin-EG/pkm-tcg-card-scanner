@@ -9,6 +9,8 @@ Usage:
 
 For every model: crop the card, embed it, search the index, and report top-1 and
 top-3 accuracy, time per search on CPU (decode + crop + embed + search), and failures.
+Photos of cards the index has no image for (catalog gaps) are listed separately and
+left out of top-1/top-3; they still count toward timing.
 """
 
 from __future__ import annotations
@@ -75,27 +77,26 @@ def read_names(catalog: Path) -> dict[str, str]:
     return names
 
 
-def print_summary(s: Summary, names: dict[str, str], in_catalog: set[str]) -> None:
-    print(f"\n=== {s.model}: {s.n} photos ===")
+def print_summary(s: Summary, names: dict[str, str]) -> None:
+    print(f"\n=== {s.model}: {s.n} photos scored, {len(s.gaps)} catalog gaps ===")
     print(f"top-1 {s.top1:.1%}   top-3 {s.top3:.1%}   mean {s.mean_seconds:.3f}s   max {s.max_seconds:.3f}s   "
           f"card found {s.crop_rate:.0%}")
-    if not s.failures:
-        return
-    print("failures (photo | expected | rank | top-3):")
-    for f in s.failures:
-        rank = f.rank()
-        note = "" if f.true_id in in_catalog else "  [NOT IN CATALOG]"
-        crop = "" if f.cropped else "  [no card found, used full photo]"
-        top = ", ".join(f"{cid} {names.get(cid, '?')} ({sc:.3f})" for cid, sc in f.predictions)
-        print(f"  {f.photo} | {f.true_id} {names.get(f.true_id, '?')} | {rank or '-'} | {top}{note}{crop}")
+    for title, rows in (("failures", s.failures), ("catalog gaps, not scored", s.gaps)):
+        if not rows:
+            continue
+        print(f"{title} (photo | expected | rank | top-3):")
+        for f in rows:
+            crop = "" if f.cropped else "  [no card found, used full photo]"
+            top = ", ".join(f"{cid} {names.get(cid, '?')} ({sc:.3f})" for cid, sc in f.predictions)
+            print(f"  {f.photo} | {f.true_id} {names.get(f.true_id, '?')} | {f.rank() or '-'} | {top}{crop}")
 
 
 def print_table(summaries: list[Summary]) -> None:
-    header = f"| {'model':<8} | {'photos':>6} | {'top-1':>6} | {'top-3':>6} | {'mean s':>7} | {'max s':>6} | {'card found':>10} |"
+    header = f"| {'model':<8} | {'photos':>6} | {'gaps':>4} | {'top-1':>6} | {'top-3':>6} | {'mean s':>7} | {'max s':>6} | {'card found':>10} |"
     print("\n" + header)
     print("|" + "|".join("-" * (len(c)) for c in header.split("|")[1:-1]) + "|")
     for s in summaries:
-        print(f"| {s.model:<8} | {s.n:>6} | {s.top1:>6.1%} | {s.top3:>6.1%} | {s.mean_seconds:>7.3f} | "
+        print(f"| {s.model:<8} | {s.n:>6} | {len(s.gaps):>4} | {s.top1:>6.1%} | {s.top3:>6.1%} | {s.mean_seconds:>7.3f} | "
               f"{s.max_seconds:>6.3f} | {s.crop_rate:>10.0%} |")
 
 
@@ -119,14 +120,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"no photos found in {args.photos}", file=sys.stderr)
         return 1
     names = read_names(args.catalog)
-    in_catalog = set(names)
-    missing = sorted({card_id_from_filename(p) for p in photos} - in_catalog)
     print(f"{len(photos)} photos, CPU threads: {torch.get_num_threads()}, flip: {args.flip}")
-    if missing:
-        print(f"WARNING: {len(missing)} labeled ids are not in the catalog: {', '.join(missing)}")
 
     summaries: list[Summary] = []
-    report: dict = {"photos": len(photos), "flip": args.flip, "not_in_catalog": missing, "models": {}}
+    report: dict = {"photos": len(photos), "flip": args.flip, "models": {}}
     for model in args.models:
         embedder = load_embedder(model)
         index, ids = faiss_index.load(args.index_dir, model)
@@ -141,11 +138,12 @@ def main(argv: list[str] | None = None) -> int:
                 out = args.report.parent / "crops" / f"{p.stem}.jpg"
                 out.parent.mkdir(parents=True, exist_ok=True)
                 cv2.imwrite(str(out), card)
-        s = summarize(model, results)
+        s = summarize(model, results, indexed=set(ids))
         summaries.append(s)
-        print_summary(s, names, in_catalog)
+        print_summary(s, names)
         report["models"][model] = {
-            **{k: v for k, v in asdict(s).items() if k != "failures"},
+            **{k: v for k, v in asdict(s).items() if k not in ("failures", "gaps")},
+            "catalog_gaps": [g.true_id for g in s.gaps],
             "results": [{**asdict(r), "rank": r.rank()} for r in results],
         }
 

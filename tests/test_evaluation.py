@@ -47,3 +47,20 @@ def test_summarize_topk_and_timing():
 
 def test_summarize_empty():
     assert summarize("m", []).n == 0
+
+
+def test_summarize_leaves_gap_cards_out_of_accuracy():
+    results = [
+        _r("a", ["a", "b", "c"], 0.2),
+        _r("b", ["c", "a", "b"], 0.4),
+        _r("gap", ["a", "b", "c"], 1.5, cropped=False),
+    ]
+    s = summarize("m", results, indexed={"A", "b", "c"})
+    assert s.n == 2
+    assert s.top1 == pytest.approx(0.5)
+    assert s.top3 == pytest.approx(1.0)
+    assert [f.true_id for f in s.failures] == ["b"]
+    assert [g.true_id for g in s.gaps] == ["gap"]
+    # Every photo still counts toward timing and crop rate.
+    assert s.max_seconds == pytest.approx(1.5)
+    assert s.crop_rate == pytest.approx(2 / 3)

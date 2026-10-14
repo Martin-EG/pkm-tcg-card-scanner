@@ -39,6 +39,13 @@ class Result:
 
 @dataclass
 class Summary:
+    """Accuracy over photos whose card is in the index (n of them).
+
+    Photos of cards the index has no image for can't be matched by any image
+    model; they're listed in gaps and left out of top-1/top-3. Timing and crop
+    rate cover every photo.
+    """
+
     model: str
     n: int
     top1: float
@@ -47,23 +54,27 @@ class Summary:
     max_seconds: float
     crop_rate: float
     failures: list[Result] = field(default_factory=list)
+    gaps: list[Result] = field(default_factory=list)
 
 
-def summarize(model: str, results: list[Result]) -> Summary:
-    n = len(results)
-    if n == 0:
-        return Summary(model, 0, 0.0, 0.0, 0.0, 0.0, 0.0, [])
-    ranks = [r.rank() for r in results]
-    top1 = sum(1 for k in ranks if k == 1) / n
-    top3 = sum(1 for k in ranks if k is not None and k <= 3) / n
+def summarize(model: str, results: list[Result], indexed: set[str] | None = None) -> Summary:
+    """indexed: card ids the index holds; None treats every photo as matchable."""
+    if not results:
+        return Summary(model, 0, 0.0, 0.0, 0.0, 0.0, 0.0, [], [])
+    known = None if indexed is None else {i.lower() for i in indexed}
+    scored = [r for r in results if known is None or r.true_id.lower() in known]
+    gaps = [r for r in results if known is not None and r.true_id.lower() not in known]
+    n = len(scored)
+    ranks = [r.rank() for r in scored]
     secs = [r.seconds for r in results]
     return Summary(
         model=model,
         n=n,
-        top1=top1,
-        top3=top3,
-        mean_seconds=sum(secs) / n,
+        top1=sum(1 for k in ranks if k == 1) / n if n else 0.0,
+        top3=sum(1 for k in ranks if k is not None and k <= 3) / n if n else 0.0,
+        mean_seconds=sum(secs) / len(secs),
         max_seconds=max(secs),
-        crop_rate=sum(r.cropped for r in results) / n,
-        failures=[r for r, k in zip(results, ranks) if k != 1],
+        crop_rate=sum(r.cropped for r in results) / len(results),
+        failures=[r for r, k in zip(scored, ranks) if k != 1],
+        gaps=gaps,
     )
