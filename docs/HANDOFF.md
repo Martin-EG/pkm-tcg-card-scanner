@@ -59,7 +59,7 @@ Expected catalog: 31 sets, **4,742 cards** with images (250 listed cards have no
 
 ## Where it stopped
 
-The artwork-box embedding was committed, but the index rebuild with it **did not finish**: the cloud session ended mid-build. **Next step: rebuild both indexes and run the eval** (commands above). Old indexes built before `embed_cards` have the wrong dimension and won't work with the current code.
+The artwork-box embedding was committed, but the index rebuild with it **had not finished** when the session was handed off, and `data/` is not in git anyway. **Next step: rebuild both indexes and run the eval** (commands above). Old indexes built before `embed_cards` have the wrong dimension and won't work with the current code.
 
 ## Results so far
 
