@@ -136,3 +136,15 @@ def test_old_database_gets_the_provider_column(tmp_path):
     conn.close()
     cols = {r[1] for r in Store(path).conn.execute("PRAGMA table_info(price_cache)")}
     assert "provider" in cols
+
+
+def test_old_database_gets_the_removed_at_column(tmp_path):
+    import sqlite3
+
+    path = tmp_path / "old.sqlite"
+    conn = sqlite3.connect(path)
+    conn.execute("CREATE TABLE session_cards (id INTEGER PRIMARY KEY, session_id INTEGER)")
+    conn.commit()
+    conn.close()
+    cols = {r[1] for r in Store(path).conn.execute("PRAGMA table_info(session_cards)")}
+    assert {"removed_at", "price_provider"} <= cols

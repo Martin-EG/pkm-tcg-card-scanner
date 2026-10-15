@@ -64,6 +64,10 @@ export const api = {
   addCard: (sessionId: number, body: {
     card_id: string; printed_language?: string | null; scan_id?: number; card_index?: number
   }) => request<SessionCard>(`/sessions/${sessionId}/cards`, { method: 'POST', ...json(body) }),
+  removeCard: (sessionId: number, cardId: number) =>
+    request<Session>(`/sessions/${sessionId}/cards/${cardId}`, { method: 'DELETE' }),
+  restoreCard: (sessionId: number, cardId: number) =>
+    request<Session>(`/sessions/${sessionId}/cards/${cardId}/restore`, { method: 'POST' }),
   patchCard: (sessionId: number, cardId: number, changes: CardPatch) =>
     request<SessionCard>(`/sessions/${sessionId}/cards/${cardId}`, { method: 'PATCH', ...json(changes) }),
 }

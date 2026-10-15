@@ -5,6 +5,7 @@ import { ConnectionBanner } from './components/ConnectionBanner'
 import { InstallHint } from './components/InstallHint'
 import { ReviewList } from './components/ReviewList'
 import { Summary } from './components/Summary'
+import { UndoToast } from './components/UndoToast'
 import { downloadCsv } from './csv'
 import { useCounter } from './store'
 
@@ -18,7 +19,7 @@ export default function App() {
   const currency = state.session?.currency ?? state.settings?.currency
 
   return (
-    <div className="app">
+    <div className={state.undo ? 'app app-with-toast' : 'app'}>
       <header className="top">
         <h1>Compra{state.session ? ` #${state.session.id}` : ''}</h1>
         {currency && <span className="badge">{currency}</span>}
@@ -43,7 +44,8 @@ export default function App() {
         {tab === 'cards' && (
           <>
             <ReviewList reviews={state.reviews} onPick={counter.resolveReview} />
-            <CardList session={state.session} settings={state.settings} extras={state.extras} onChange={counter.changeCard} />
+            <CardList session={state.session} settings={state.settings} extras={state.extras}
+              onChange={counter.changeCard} onRemove={counter.removeCard} />
           </>
         )}
         {tab === 'summary' && (
@@ -57,6 +59,8 @@ export default function App() {
             }} />
         )}
       </main>
+
+      <UndoToast removed={state.undo} onUndo={counter.undoRemove} onTimeout={counter.clearUndo} />
 
       <nav className="tabs">
         <button className={tab === 'scan' ? 'on' : ''} onClick={() => setTab('scan')}>Escanear</button>
