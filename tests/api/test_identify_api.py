@@ -231,3 +231,24 @@ def test_tied_card_is_marked_for_review_even_with_a_high_score(data_dir, monkeyp
     assert ident.identify_cards([colored_card(0)])[0].needs_review
     monkeypatch.setitem(identify_module._ID, "review_margin", 0.0)
     assert not ident.identify_cards([colored_card(0)])[0].needs_review
+
+
+def test_best_crop_keeps_the_one_matching_the_catalog(data_dir):
+    ident = identify_module.Identifier(("en",), data_dir, ocr=False)
+    pocket = np.full((880, 630, 3), (60, 60, 60), np.uint8)  # GrabCut took the gray pocket
+    card = colored_card(3)                                    # the outline gave the card itself
+    assert ident._best_crop([pocket, card]) is card
+    assert ident._best_crop([card, pocket]) is card
+
+
+def test_new_scan_never_overwrites_an_older_scan_folder(tmp_path):
+    from server.api.routes.identify import _fresh_scan_dir
+
+    old = tmp_path / "7"
+    old.mkdir()
+    (old / "photo.jpg").write_bytes(b"older database")
+    new = _fresh_scan_dir(tmp_path, 7)
+    assert new == old and list(new.iterdir()) == []
+    moved = list((tmp_path / "_older").iterdir())
+    assert len(moved) == 1 and moved[0].name.startswith("7-")
+    assert (moved[0] / "photo.jpg").read_bytes() == b"older database"

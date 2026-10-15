@@ -45,6 +45,9 @@ crop:
   grid_inset: 0.1
   # An inferred pocket may stick out of the photo by at most this fraction of its size.
   grid_max_outside: 0.02
+  # A single card's GrabCut region and outline overlapping more than this are the same
+  # crop; otherwise both are tried and the better catalog match wins.
+  same_crop_overlap: 0.9
 
 quality:
   # Variance of the Laplacian on the grayscale photo resized to quality_max_side.
