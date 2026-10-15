@@ -17,7 +17,7 @@ from server.api.routes import sessions as sessions_routes
 from server.api.routes import settings as settings_routes
 from server.config.rules import fx_rules, pricing_rules
 from server.config.settings import Settings, get_settings
-from server.paths import APP_DIST, DATA, SCANS_DIR
+from server.paths import APP_DIST, DATA, DB_PATH, SCANS_DIR
 from server.pricing.fx import BanxicoClient, FxService, FxUnavailable
 from server.pricing.prices import PriceService, build_providers
 from server.recognition.crop import PhotoError
@@ -51,7 +51,7 @@ def create_app(identifier=None, store: Store | None = None, scans_dir: Path = SC
             from server.recognition.identify import Identifier  # loads the models: seconds
 
             identifier = Identifier(get_settings().languages)
-        store = store or Store(DATA / "server.storage.db")
+        store = store or Store(DB_PATH)
         settings = settings or get_settings()
         sessions = sessions or build_sessions(store, identifier, settings)
         app.state.services = Services(identifier, store, sessions, settings, scans_dir)
