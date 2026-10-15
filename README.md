@@ -27,6 +27,19 @@ card ─► price (TCGplayer market price via TCGdex, pokemontcg.io as backup; c
 
 Every percentage, factor and minimum lives in `config/reglas.yaml`. None are written in the code.
 
+## Using the app
+
+The phone app is in Mexican Spanish, with large buttons for one-handed use and three tabs at the bottom.
+
+- **Escanear:** pick **1 carta** or **Página de 9**, frame the cards inside the guide, and tap **Tomar foto**. The first photo starts a new buy session.
+- **Cartas:** every card in the purchase, newest first, with the photo next to the official image.
+  - Confident matches are added automatically. Uncertain ones (low confidence, Spanish or Japanese prints, cards with no catalog image) ask **"¿Cuál es?"** with 3 options, or **Ninguna, descartar**.
+  - Per card: condition (**NM** by default), variant, **Buscar vendidos en eBay**, a manual price in US$, and **El cliente la vende / se la queda**.
+  - **Quitar de la compra** takes a card out of the purchase and its totals. **Deshacer** brings it back for 6 seconds afterwards. The card is kept in the database, marked as removed, for later review.
+- **Resumen:** the screen to show the customer. It has the currency, the Banxico rate with its date, cash and credit totals, and each card's offer and price source. **Exportar CSV** saves the purchase for inventory; **Nueva compra** starts the next customer.
+
+**No connection to the shop PC:** the app says so and keeps the purchase on the phone. Changes made meanwhile, including removed cards, are sent when the PC is reachable again. New photos need the PC, so the shutter waits for it.
+
 ## Status
 
 | Phase | What | State |
@@ -152,7 +165,7 @@ It creates a small certificate authority for the shop (`data/certs/ca.pem`, made
 uvicorn server.main:app --host 0.0.0.0 --port 8443 --ssl-certfile data/certs/server.pem --ssl-keyfile data/certs/server.key
 ```
 
-Interactive API docs are at `/docs`.
+See [API](#api) for the endpoints.
 
 ### 7. Set up each phone (once)
 
@@ -162,27 +175,38 @@ Interactive API docs are at `/docs`.
    - **iPhone:** Settings → General → VPN & Device Management → install the downloaded profile. Then go to Settings → General → About → Certificate Trust Settings and turn on full trust for "TCG Buylist Scanner – tienda local".
    - **Android:** Settings → Security → Encryption & credentials → Install a certificate → CA certificate, and pick the downloaded file. The menu names vary by phone.
 4. Open `https://<shop-pc-ip>:8443`. There should be no warning now.
-5. Add it to the home screen: Share → Add to Home Screen on iPhone; menu → Install app on Android.
+5. Add it to the home screen:
+   - **iPhone:** iOS never offers to install a web app, so the app shows a notice with the steps. In **Safari** (other iPhone browsers may not have the option), tap Share → **Agregar a pantalla de inicio** → Agregar. The notice goes away once the app runs from the home screen, or after **Entendido**.
+   - **Android:** browser menu → Install app.
 
 Without these steps the app still works over `http://<shop-pc-ip>:8000` (run uvicorn without the `--ssl-*` options), but it uses the phone's own camera app instead of the live camera with the guide frame, and it can't be installed.
 
-| Endpoint | Purpose |
-|---|---|
-| `POST /identify` | Photo in; per card: top 3 matches, confidence, language flag, `needs_review`, crop URL |
-| `POST /corrections` | Store the card the employee picked when the match was wrong |
-| `POST /sessions` | Start a buy session (fixes the exchange rate for that customer) |
-| `POST /sessions/{id}/cards` | Add a card: looks up its price and calculates the offer |
-| `PATCH /sessions/{id}/cards/{card_id}` | Change condition, variant, manual price (USD) or accepted |
-| `GET /sessions/{id}` | Cards with offers, plus cash and credit totals |
-| `GET /settings` | Active currency, languages, conditions (read-only) |
+After pulling an update, rebuild the app (step 4) and restart the server. The phones pick up the new version the next time they open the app, sometimes on the second load.
 
 ### 8. Test
 
 ```bash
 python -m pytest -q                              # server: unit and API tests; no network or models needed
-cd app && npm test                               # phone app: offline handling, summary, picker, CSV
+cd app && npm test                               # phone app: offline queue, summary, picker, card removal, iPhone notice, CSV
 python scripts/eval_phase1.py --threads 4        # identification QA gate; needs data/ built
 ```
+
+## API
+
+The phone app talks to these endpoints; interactive docs are at `/docs` on the running server.
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /identify` | Photo in; per card: top 3 matches, confidence (0–1), language flag, `needs_review`, crop URL |
+| `POST /corrections` | Store the card the employee picked when the match was wrong |
+| `POST /sessions` | Start a buy session (fixes the exchange rate for that customer) |
+| `GET /sessions/{id}` | Cards with offers, plus cash and credit totals (removed cards left out) |
+| `POST /sessions/{id}/cards` | Add a card: looks up its price and calculates the offer |
+| `PATCH /sessions/{id}/cards/{card_id}` | Change condition, variant, manual price (USD) or accepted |
+| `DELETE /sessions/{id}/cards/{card_id}` | Remove a card from the purchase and its totals (kept in the database, marked removed) |
+| `POST /sessions/{id}/cards/{card_id}/restore` | Undo a removal |
+| `GET /settings` | Active currency, languages, conditions (read-only) |
+| `GET /certificado` | The shop's certificate authority, for phones to install |
 
 ## Data sources
 
@@ -198,6 +222,7 @@ python scripts/eval_phase1.py --threads 4        # identification QA gate; needs
 - **No catalog image:** 1,592 English cards have no image on TCGdex (Shiny Vault, Shining Legends, Dragon Majesty, the Galleries). Photos of them come back marked for review.
 - **Newest sets have no price:** the newest sets have no price for the first weeks (30th Celebration as of Oct 2026). Use the eBay link and a manual price.
 - **Timing:** not yet measured on the shop PC.
+- **iPhone installation is manual:** iOS has no install prompt (the app explains the steps), and the shop certificate has to be trusted by hand on each phone.
 
 See `docs/MVP.md` for the product and `docs/sequence-builder.md` for the phase plan. Contributors and coding agents: read `AGENTS.md` first.
 
