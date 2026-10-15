@@ -67,7 +67,7 @@ server/                     Python server (FastAPI)
     fx.py, ebay.py          Banxico exchange rate · eBay sold-items link
     offer.py                Offer formula
   sessions/service.py       Buy sessions: cards, prices, offers, totals
-  storage/db.py             SQLite schema: scans, corrections, price cache, FX rates, sessions
+  storage/db.py             SQLite (data/scanner.db): scans, corrections, price cache, FX rates, sessions
 config/reglas.yaml          Business rules and every tunable threshold (shares, factors, minimum, crop, OCR)
 .env.example                Server settings: languages, USD→MXN conversion, API keys
 scripts/
@@ -80,7 +80,7 @@ tests/                      pytest suite, grouped like server/ (recognition, pri
 photos/                     Labeled test photos (<tcgdex id>.heic), binder pages, Spanish cards
 docs/                       MVP, phase plan, per-phase results (Phase 0–2 docs use the old scanner/ paths)
 reports/                    Evaluation output committed with each phase
-data/                       Catalog, images, indexes, SQLite, certificates (git-ignored, ~2 GB)
+data/                       Catalog, images, indexes, scanner.db, scans, certificates (git-ignored, ~2 GB)
 ```
 
 ## Getting started
@@ -198,6 +198,10 @@ python scripts/eval_phase1.py --threads 4        # identification QA gate; needs
 - **No catalog image:** 1,592 English cards have no image on TCGdex (Shiny Vault, Shining Legends, Dragon Majesty, the Galleries). Photos of them come back marked for review.
 - **Newest sets have no price:** the newest sets have no price for the first weeks (30th Celebration as of Oct 2026). Use the eBay link and a manual price.
 - **Timing:** not yet measured on the shop PC.
+
+## Upgrading
+
+- **`data/server.storage.db` exists:** versions between the server reorganization and the database-path fix wrote to `data/server.storage.db` by mistake. Stop the server, keep a copy of the old file (`mv data/scanner.db data/scanner.db.before-fix`), then `mv data/server.storage.db data/scanner.db`, and start the server again.
 
 See `docs/MVP.md` for the product and `docs/sequence-builder.md` for the phase plan. Contributors and coding agents: read `AGENTS.md` first.
 
