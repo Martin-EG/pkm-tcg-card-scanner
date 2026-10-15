@@ -350,8 +350,22 @@ def _reading_order(quads: list[np.ndarray]) -> list[np.ndarray]:
     return [q for row in rows for q in sorted(row, key=lambda q: q[:, 0].mean())]
 
 
-def crop_cards(image: np.ndarray) -> list[np.ndarray]:
-    """Every card in the photo, warped upright, in reading order.
+def _overlap(a: np.ndarray, b: np.ndarray) -> float:
+    """Intersection over union of the two quads' bounding boxes."""
+    ax, ay, aw, ah = cv2.boundingRect(a.astype(np.float32))
+    bx, by, bw, bh = cv2.boundingRect(b.astype(np.float32))
+    iw = max(0, min(ax + aw, bx + bw) - max(ax, bx))
+    ih = max(0, min(ay + ah, by + bh) - max(ay, by))
+    inter = iw * ih
+    return inter / float(aw * ah + bw * bh - inter) if inter else 0.0
+
+
+def card_crops(image: np.ndarray) -> list[list[np.ndarray]]:
+    """Every card in the photo, in reading order, as a list of candidate crops (best guess
+    first). A single card can get two: GrabCut's region and the card's own outline. In a
+    binder pocket GrabCut can take the whole pocket while the outline is exact (an HGSS
+    Entei matched 0.56 from GrabCut's crop and 0.79 from its outline), so the identifier
+    keeps whichever matches the catalog better.
 
     Raises PhotoError("blurry") or PhotoError("no_card") instead of returning a guess.
     """
@@ -359,8 +373,20 @@ def crop_cards(image: np.ndarray) -> list[np.ndarray]:
         raise PhotoError("blurry", "La foto está borrosa. Toma otra con el celular quieto y buena luz.")
     quads = find_card_quads(image)
     if len(quads) >= 2:
-        return [warp_card(image, q) for q in quads[: _CFG["max_cards"]]]
-    quad = find_card_quad(image)
-    if quad is None:
+        return [[warp_card(image, q)] for q in quads[: _CFG["max_cards"]]]
+    region = find_card_quad(image)
+    outline = quads[0] if quads else None
+    crops = []
+    if region is not None:
+        crops.append(warp_card(image, region))
+    if outline is not None and (region is None or _overlap(region, outline) < _CFG["same_crop_overlap"]):
+        crops.append(warp_card(image, outline))
+    if not crops:
         raise PhotoError("no_card", "No se encontró ninguna carta en la foto.")
-    return [warp_card(image, quad)]
+    return [crops]
+
+
+def crop_cards(image: np.ndarray) -> list[np.ndarray]:
+    """Every card in the photo, warped upright, in reading order (first candidate crop
+    of each). Raises PhotoError like card_crops."""
+    return [crops[0] for crops in card_crops(image)]

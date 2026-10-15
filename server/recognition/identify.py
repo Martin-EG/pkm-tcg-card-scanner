@@ -16,7 +16,7 @@ from server.recognition import index as faiss_index
 from server.paths import DATA
 from server.recognition.catalog import Catalog, load_catalog
 from server.config.rules import rules
-from server.recognition.crop import PhotoError, crop_cards
+from server.recognition.crop import PhotoError, card_crops
 from server.recognition.embedders import embed_cards, load_embedder
 from server.recognition.ocr import CardText, CardTextReader, lookup_by_text, text_bonus
 
@@ -77,7 +77,7 @@ class Identifier:
     def identify_photo(self, image_bgr: np.ndarray) -> list[CardResult]:
         """Every card in the photo. Raises PhotoError for blurry photos and photos
         with no card, including a single crop that matches nothing in the catalog."""
-        crops = crop_cards(image_bgr)
+        crops = [alts[0] if len(alts) == 1 else self._best_crop(alts) for alts in card_crops(image_bgr)]
         results = self.identify_cards(crops)
         if len(results) == 1 and not results[0].confident:
             raise PhotoError("no_card", "No se encontró ninguna carta en la foto.")
@@ -149,6 +149,23 @@ class Identifier:
                 timings={"embed": embed_s, "search": search_s, "ocr": ocr_s},
             ))
         return results
+
+    def _best_crop(self, crops: list[np.ndarray]) -> np.ndarray:
+        """The candidate crop whose best catalog match scores highest (either orientation)."""
+        views: list[Image.Image] = []
+        for crop in crops:
+            pil = Image.fromarray(cv2.cvtColor(crop, cv2.COLOR_BGR2RGB))
+            views += [pil, pil.rotate(180)]
+        vectors = embed_cards(self.embedder, views)
+        best = []
+        for k in range(len(crops)):
+            top = 0.0
+            for vec in vectors[2 * k:2 * k + 2]:
+                for index, ids in self.indexes.values():
+                    hits = faiss_index.search(index, ids, vec, 1)
+                    top = max([top] + [s for _, s in hits])
+            best.append(top)
+        return crops[int(np.argmax(best))]
 
     def _unconfirmed_tie(self, top: list[tuple[tuple[str, str], float]], text: CardText | None) -> bool:
         """The top two are within review_margin and the text doesn't single out the first:

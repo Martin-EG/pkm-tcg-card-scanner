@@ -19,6 +19,9 @@ SET_OVERRIDES = {
     "svp": "svp",  # "SVP Black Star Promos" vs "Scarlet & Violet Black Star Promos"
     "hgss3": "hgss3",  # "Undaunted" vs "HS—Undaunted"
     "hgss4": "hgss4",  # "Triumphant" vs "HS—Triumphant"
+    "sve": "sve",  # "Scarlet & Violet Energy" vs "Scarlet & Violet Energies"
+    "30th-c": "me55c",  # "30th Classic Collection" vs "30th Celebration: Classic Collection"
+    "rc": "g1",  # Radiant Collection: on pokemontcg.io its RC1-RC32 cards are part of Generations
 }
 
 

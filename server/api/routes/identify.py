@@ -42,6 +42,20 @@ def decode_photo(data: bytes) -> np.ndarray:
     return cv2.cvtColor(np.asarray(rgb), cv2.COLOR_RGB2BGR)
 
 
+def _fresh_scan_dir(scans_dir: Path, scan_id: int) -> Path:
+    """Folder for a new scan's files. A folder already there belongs to another database
+    (scan ids restart with a new one), so it's moved to scans/_older/ instead of being
+    overwritten."""
+    scan_dir = scans_dir / str(scan_id)
+    if scan_dir.exists() and any(scan_dir.iterdir()):
+        older = scans_dir / "_older"
+        older.mkdir(parents=True, exist_ok=True)
+        stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime(scan_dir.stat().st_mtime))
+        scan_dir.rename(older / f"{scan_id}-{stamp}")
+    scan_dir.mkdir(parents=True, exist_ok=True)
+    return scan_dir
+
+
 def _rel(path: Path) -> str:
     return str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else str(path)
 
@@ -52,8 +66,7 @@ async def identify(photo: UploadFile = File(...), svc: Services = Depends(servic
     data = await photo.read()
     store = svc.store
     scan_id = store.add_scan("")
-    scan_dir = svc.scans_dir / str(scan_id)
-    scan_dir.mkdir(parents=True, exist_ok=True)
+    scan_dir = _fresh_scan_dir(svc.scans_dir, scan_id)
     suffix = Path(photo.filename or "photo.jpg").suffix.lower() or ".jpg"
     photo_path = scan_dir / f"photo{suffix}"
     photo_path.write_bytes(data)

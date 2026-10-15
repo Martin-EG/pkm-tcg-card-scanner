@@ -1,10 +1,10 @@
 """Embed every catalog image with one model and save a FAISS index for it.
 
 Usage:
-    python scripts/build_index.py --model clip
-    python scripts/build_index.py --model dinov2
+    python scripts/build_index.py --model dinov2            # whole catalog (~35 min on a laptop CPU)
+    python scripts/build_index.py --model dinov2 --append   # only cards not in the index yet
 
-Writes data/index/<model>.faiss and data/index/<model>_ids.json.
+Writes data/index/<model>_<lang>.faiss and data/index/<model>_<lang>_ids.json.
 """
 
 from __future__ import annotations
@@ -39,6 +39,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--index-dir", type=Path, default=ROOT / "data" / "index")
     ap.add_argument("--batch-size", type=int, default=32)
     ap.add_argument("--threads", type=int, default=0, help="torch CPU threads (0 = default)")
+    ap.add_argument("--append", action="store_true",
+                    help="add only catalog cards missing from the existing index (after fill_image_gaps.py)")
     args = ap.parse_args(argv)
 
     if args.threads:
@@ -46,6 +48,14 @@ def main(argv: list[str] | None = None) -> int:
     args.catalog = args.catalog or ROOT / "data" / f"catalog_{args.lang}.jsonl"
     rows = read_catalog(args.catalog)
     print(f"{len(rows)} cards in {args.catalog}")
+    existing = None
+    if args.append and faiss_index.index_paths(args.index_dir, args.model, args.lang)[0].exists():
+        existing = faiss_index.load(args.index_dir, args.model, args.lang)
+        indexed = set(existing[1])
+        rows = [r for r in rows if r["id"] not in indexed]
+        print(f"{len(indexed)} already indexed; {len(rows)} to add")
+        if not rows:
+            return 0
     embedder = load_embedder(args.model)
 
     ids: list[str] = []
@@ -65,7 +75,16 @@ def main(argv: list[str] | None = None) -> int:
     print()
 
     vectors = np.concatenate(chunks)
-    idx = faiss_index.build(vectors)
+    if existing is not None:
+        idx, old_ids = existing
+        if idx.d != vectors.shape[1]:
+            print(f"index has {idx.d}-dim vectors but the model gives {vectors.shape[1]}; rebuild without --append",
+                  file=sys.stderr)
+            return 1
+        idx.add(np.ascontiguousarray(vectors, dtype=np.float32))
+        ids = old_ids + ids
+    else:
+        idx = faiss_index.build(vectors)
     faiss_index.save(idx, ids, args.index_dir, args.model, args.lang)
     print(f"saved {idx.ntotal} x {vectors.shape[1]} vectors to "
           f"{faiss_index.index_paths(args.index_dir, args.model, args.lang)[0]}")

@@ -178,3 +178,12 @@ def test_grid_completion_needs_a_grid_and_skips_cards_cut_by_the_edge():
     small = np.full((300, 240), 255, np.uint8)
     found = [_rect(10 + 120 * c, 10 + 150 * r) for r in range(2) for c in range(2)]
     assert _missing_grid_cards(found, small) == []
+
+
+def test_overlap_of_quads():
+    from server.recognition.crop import _overlap
+
+    a = _rect(0, 0, 100, 100)
+    assert _overlap(a, a) == 1.0
+    assert _overlap(a, _rect(200, 200, 50, 50)) == 0.0
+    assert abs(_overlap(a, _rect(0, 0, 100, 50)) - 0.5) < 0.01  # boundingRect counts whole pixels

@@ -85,7 +85,8 @@ config/reglas.yaml          Business rules and every tunable threshold (shares, 
 .env.example                Server settings: languages, USD→MXN conversion, API keys
 scripts/
   fetch_catalog.py          Download the TCGdex catalog and card images (resumable)
-  build_index.py            Embed the catalog into a FAISS index
+  fill_image_gaps.py        Add cards TCGdex has no image for, with pokemontcg.io images (resumable)
+  build_index.py            Embed the catalog into a FAISS index (--append: only new cards)
   eval.py, eval_phase1.py   Phase 0 and Phase 1 QA evaluations (evaluation.py: shared helpers)
   make_cert.py              Local HTTPS certificate for the shop network (see below)
   fix_macos_openmp.sh       macOS only: make faiss and torch share one OpenMP runtime
@@ -94,6 +95,7 @@ photos/                     Labeled test photos (<tcgdex id>.heic), binder pages
 docs/                       MVP, phase plan, per-phase results (Phase 0–2 docs use the old scanner/ paths)
 reports/                    Evaluation output committed with each phase
 data/                       Catalog, images, indexes, scanner.db, scans, certificates (git-ignored, ~2 GB)
+                            (scans/_older/: scan folders moved aside when a new database reuses their number)
 ```
 
 ## Getting started
@@ -138,8 +140,11 @@ The condition factors and the minimum buy price in `config/reglas.yaml` are plac
 
 ```bash
 python scripts/fetch_catalog.py --since 1999-01-01     # ~19.7k cards, ~1.5 GB; safe to interrupt and re-run
+python scripts/fill_image_gaps.py                       # +~785 cards TCGdex has no image for, from pokemontcg.io
 python scripts/build_index.py --model dinov2 --lang en  # ~35 min on a laptop CPU
 ```
+
+After adding cards later (a new set, or re-running `fill_image_gaps.py`), `python scripts/build_index.py --model dinov2 --append` embeds only the new ones in about a minute.
 
 ### 4. Build the phone app
 
@@ -212,14 +217,14 @@ The phone app talks to these endpoints; interactive docs are at `/docs` on the r
 
 | What | Source |
 |---|---|
-| Catalog and card images | [TCGdex](https://tcgdex.dev) (open data) |
+| Catalog and card images | [TCGdex](https://tcgdex.dev) (open data); [pokemontcg.io](https://pokemontcg.io) images for cards TCGdex has none for |
 | Market price (USD) | TCGplayer, via [TCGdex](https://tcgdex.dev) (main) and [pokemontcg.io](https://pokemontcg.io) (backup) |
 | Exchange rate | [Banxico SIE](https://www.banxico.org.mx/SieAPIRest/), series SF43718 (FIX) |
 | Recent sales | eBay sold-items search, opened by the employee (no scraping) |
 
 ## Known limits
 
-- **No catalog image:** 1,592 English cards have no image on TCGdex (Shiny Vault, Shining Legends, Dragon Majesty, the Galleries). Photos of them come back marked for review.
+- **No catalog image:** after `fill_image_gaps.py`, about 800 English cards still have no image from either source, mostly MEP promos, My First Battle, trainer kits and the MEE energies. Photos of them come back marked for review.
 - **Newest sets have no price:** the newest sets have no price for the first weeks (30th Celebration as of Oct 2026). Use the eBay link and a manual price.
 - **Timing:** not yet measured on the shop PC.
 - **iPhone installation is manual:** iOS has no install prompt (the app explains the steps), and the shop certificate has to be trusted by hand on each phone.
