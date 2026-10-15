@@ -35,6 +35,16 @@ crop:
   multi_min_hull_fill: 0.9
   # An outline holding 2+ outlines smaller than this share of its area is a page, not a card.
   multi_inner_card_ratio: 0.6
+  # Binder pages: once this many cards are found in a grid, the missing pockets of the
+  # 3x3 grid are inferred from the spacing (glare can hide a card's outline). An inferred
+  # pocket counts as a card only if its edge density (inside the inner part, inset by
+  # grid_inset) reaches grid_min_edge_density: empty pockets measured 0.000-0.004 and
+  # missed cards 0.026-0.42 on real photos.
+  grid_min_cards: 4
+  grid_min_edge_density: 0.02
+  grid_inset: 0.1
+  # An inferred pocket may stick out of the photo by at most this fraction of its size.
+  grid_max_outside: 0.02
 
 quality:
   # Variance of the Laplacian on the grayscale photo resized to quality_max_side.
@@ -57,6 +67,10 @@ identification:
   # binder photos scored 0.60-0.69; right ones confirmed by text 0.83+. Old cards
   # whose text isn't read can be right and still land below (Jungle Mankey: 0.675).
   review_score: 0.75
+  # Also marked for review: the 1st and 2nd candidates are closer than this and OCR didn't
+  # read the 1st one's number or set code. A near-tie means the image alone can't decide
+  # (a binder photo once put Sneasel ex 0.797 over the right Radiant Jirachi at 0.786).
+  review_margin: 0.03
   # The artwork box of a modern card, as (left, top, right, bottom) fractions. It gets
   # an embedding of its own: foil, promo stamps and imperfect crops change the rest of
   # the card but not the artwork. Rebuild the indexes after changing either value.
@@ -83,6 +97,10 @@ ocr:
   # Horizontal regions read in order (fractions of the width); the second is read
   # only when the first gives no collector number (older cards print it bottom right).
   regions: [[0.0, 0.5], [0.5, 1.0]]
+  # Read again this higher strip when the first finds no number. Crops from binder
+  # photos include part of the pocket, so the card sits higher in the image: on 40 real
+  # crops this read 6 numbers the bottom strip missed (21/40 instead of 15/40).
+  fallback_strip: [0.86, 0.93]
   # Read every card, so cards printed in a language without a catalog (Spanish and
   # Japanese for now) can be flagged; artwork is shared, so only the text tells.
   # When false, OCR runs only when the visual result is ambiguous: another top

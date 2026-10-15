@@ -64,7 +64,7 @@ export function CameraScreen({ disabled, busy, onPhoto }: Props) {
       <p className="tip">
         {mode === 'single'
           ? 'Centra la carta dentro del marco, sobre un fondo liso y con buena luz.'
-          : 'Encuadra la página completa; las cartas cortadas por el borde no se cuentan.'}
+          : 'Encuadra la página completa, sin cortar cartas. Las guías son aproximadas: no tienen que coincidir exacto.'}
       </p>
       <button className="btn btn-primary btn-shutter" onClick={shoot} disabled={disabled || !!busy}>
         {busy ?? (disabled ? 'Sin conexión' : 'Tomar foto')}

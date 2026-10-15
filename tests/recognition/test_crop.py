@@ -149,3 +149,32 @@ def test_blurry_photo_raises():
     with pytest.raises(PhotoError) as e:
         crop_cards(cv2.GaussianBlur(photo, (0, 0), 12))
     assert e.value.code == "blurry"
+
+
+# --- Binder grid completion -----------------------------------------------------------
+
+from server.recognition.crop import _missing_grid_cards  # noqa: E402
+
+
+def _rect(x, y, w=100, h=140):
+    return np.float32([[x, y], [x + w, y], [x + w, y + h], [x, y + h]])
+
+
+def test_grid_completion_finds_pockets_with_a_card_only():
+    # 3x3 page, pitch 120 x 150; cards found everywhere except (row 0, col 2) and (row 2, col 1).
+    found = [_rect(10 + 120 * c, 10 + 150 * r) for r in range(3) for c in range(3) if (r, c) not in {(0, 2), (2, 1)}]
+    edges = np.zeros((470, 380), np.uint8)
+    edges[10:150, 250:350][::4, ::4] = 255  # (0, 2): a card the outline detector missed (glare)
+    # (2, 1) stays blank: an empty pocket
+    missing = _missing_grid_cards(found, edges)
+    assert len(missing) == 1
+    assert np.allclose(missing[0].mean(axis=0), [300, 80], atol=2)
+
+
+def test_grid_completion_needs_a_grid_and_skips_cards_cut_by_the_edge():
+    edges = np.full((470, 380), 255, np.uint8)  # every pocket looks full
+    assert _missing_grid_cards([_rect(10, 10), _rect(130, 10), _rect(10, 160)], edges) == []  # under 4 cards
+    # 2x2 found at the top-left of a photo that's too small for a 3rd column or row.
+    small = np.full((300, 240), 255, np.uint8)
+    found = [_rect(10 + 120 * c, 10 + 150 * r) for r in range(2) for c in range(2)]
+    assert _missing_grid_cards(found, small) == []

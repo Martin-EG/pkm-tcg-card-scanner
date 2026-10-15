@@ -122,3 +122,50 @@ def test_plain_english_name_has_no_spanish_hit():
 
 def test_one_stray_kana_is_not_japanese():
     assert "ja" not in name_bar_languages(["STAGE1", "Armarougeク"])
+
+
+class _FakeReader:
+    """CardTextReader with scripted OCR results per (band, region)."""
+
+    def __init__(self, script):
+        from server.recognition.ocr import CardTextReader
+
+        self.reader = CardTextReader()
+        self.calls = []
+
+        def read_region(card, region, band=None):
+            self.calls.append((band, region))
+            return script.get((band, region), [])
+
+        self.reader.read_region = read_region
+        self.reader.read_name_bar = lambda card: []
+
+
+def test_reads_the_higher_strip_only_when_the_bottom_one_has_no_number():
+    import numpy as np
+
+    from server.config.rules import rules
+
+    fallback = tuple(rules()["ocr"]["fallback_strip"])
+    card = np.zeros((880, 630, 3), np.uint8)
+    # Binder crop: the bottom strip only has the copyright line; the number sits higher.
+    fake = _FakeReader({(None, 1): ["©2022 Pokemon / Nintendo"], (fallback, 0): ["F 120/195"]})
+    t = fake.reader.read(card, CODES, set())
+    assert "120" in t.numbers and 195 in t.totals
+    assert fake.calls == [(None, 0), (None, 1), (fallback, 0)]
+
+    # Number found in the bottom strip: no extra reads.
+    fake = _FakeReader({(None, 0): ["MEW EN", "004/165"]})
+    fake.reader.read(card, CODES, set())
+    assert fake.calls == [(None, 0)]
+
+
+def test_number_and_set_size_alone_must_point_to_one_card():
+    # Misread "117/086" as "112/086": three sets of 86 cards have a #112.
+    metas = [_meta("sv10.5w-112", "112", "WHT", 86, name="Vanillish"),
+             _meta("sv10.5b-112", "112", "BLK", 86, name="Emolga"),
+             _meta("me04-112", "112", "CRI", 86, name="Roxie's Performance")]
+    assert lookup_by_text(parse_card_text(["112/086"], CODES), metas) == []
+    # With the set code read, the same number is specific.
+    t = parse_card_text(["CRI EN", "112/086"], CODES)
+    assert [m.card_id for m in lookup_by_text(t, metas)] == ["me04-112"]

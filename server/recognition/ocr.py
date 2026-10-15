@@ -178,7 +178,10 @@ def text_bonus(meta: CardMeta, text: CardText) -> float:
 
 def lookup_by_text(text: CardText, metas: list[CardMeta]) -> list[CardMeta]:
     """Cards whose printed identity matches the text exactly: (set code, number) when a
-    code was read, otherwise (number, set size) for older cards that print no code."""
+    code was read, otherwise (number, set size) for older cards that print no code.
+
+    Without a set code, number and set size must point to a single card: "112/086" alone
+    fits three sets of 86 cards, and a misread number then pulls in three wrong cards."""
     if not text.numbers:
         return []
     hits = []
@@ -192,6 +195,8 @@ def lookup_by_text(text: CardText, metas: list[CardMeta]) -> list[CardMeta]:
             hits.append(m)
     if text.languages:
         hits = [m for m in hits if m.lang in text.languages] or hits
+    if not text.set_codes and len({(m.set_id, m.number) for m in hits}) > 1:
+        return []
     return hits if len(hits) <= _CFG["max_lookup_results"] else []
 
 
@@ -215,10 +220,13 @@ class CardTextReader:
             )
         return self._engines[model_key]
 
-    def read_region(self, card_bgr: np.ndarray, region: int) -> list[str]:
+    def read_region(self, card_bgr: np.ndarray, region: int, band: tuple[float, float] | None = None) -> list[str]:
+        """OCR one horizontal region of a strip; band = (top, bottom) as fractions of the
+        height, the bottom strip by default."""
         h, w = card_bgr.shape[:2]
         x0, x1 = _CFG["regions"][region]
-        strip = card_bgr[int(h * _CFG["strip_top"]):int(h * _CFG["strip_bottom"]), int(w * x0):int(w * x1)]
+        top, bottom = band or (_CFG["strip_top"], _CFG["strip_bottom"])
+        strip = card_bgr[int(h * top):int(h * bottom), int(w * x0):int(w * x1)]
         result = self._engine().predict(np.ascontiguousarray(strip))
         return list(result[0]["rec_texts"]) if result else []
 
@@ -232,9 +240,13 @@ class CardTextReader:
     def read(self, card_bgr: np.ndarray, known_codes: set[str], promo_prefixes: set[str]) -> CardText:
         texts: list[str] = []
         parsed = CardText()
-        for region in range(len(_CFG["regions"])):
-            texts += self.read_region(card_bgr, region)
-            parsed = parse_card_text(texts, known_codes, promo_prefixes)
+        bands = [None, tuple(_CFG["fallback_strip"])]
+        for band in bands:
+            for region in range(len(_CFG["regions"])):
+                texts += self.read_region(card_bgr, region, band)
+                parsed = parse_card_text(texts, known_codes, promo_prefixes)
+                if parsed.numbers:
+                    break
             if parsed.numbers:
                 break
         name = self.read_name_bar(card_bgr)
