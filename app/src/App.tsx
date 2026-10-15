@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { CameraScreen } from './components/CameraScreen'
 import { CardList } from './components/CardList'
 import { ConnectionBanner } from './components/ConnectionBanner'
+import { InstallHint } from './components/InstallHint'
 import { ReviewList } from './components/ReviewList'
 import { Summary } from './components/Summary'
 import { downloadCsv } from './csv'
@@ -23,6 +24,7 @@ export default function App() {
         {currency && <span className="badge">{currency}</span>}
       </header>
       <ConnectionBanner online={online} queued={state.queue.length} onRetry={counter.retry} />
+      <InstallHint />
       {message && (
         <div className="banner banner-error" role="alert">
           {message} <button className="btn btn-small" onClick={counter.dismissMessage}>OK</button>
