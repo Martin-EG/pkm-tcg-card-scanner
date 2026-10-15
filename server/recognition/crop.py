@@ -275,7 +275,63 @@ def find_card_quads(image: np.ndarray) -> list[np.ndarray]:
         if len(quads) >= 2 and max(areas) > _CFG["multi_max_area_ratio"] * min(areas):
             # Cards of one photo are about the same size; mixed sizes mean we caught clutter.
             quads = [q for q in quads if _quad_area(q) >= max(areas) / _CFG["multi_max_area_ratio"]]
+    quads += _missing_grid_cards(quads, edges)
     return _reading_order([q / scale for q in quads])
+
+
+def _clusters(values: list[float], tolerance: float) -> list[float]:
+    """Centers of groups of values closer than `tolerance` (the columns or rows of a grid)."""
+    groups: list[list[float]] = []
+    for v in sorted(values):
+        if groups and v - float(np.mean(groups[-1])) < tolerance:
+            groups[-1].append(v)
+        else:
+            groups.append([v])
+    return [float(np.mean(g)) for g in groups]
+
+
+def _grid_line(found: list[float], limit: float, cells: int = 3) -> list[float]:
+    """Extend the found column (or row) centers to `cells`, keeping their spacing and
+    staying inside the photo."""
+    if len(found) < 2 or len(found) >= cells:
+        return found
+    pitch = float(np.median(np.diff(found)))
+    out = list(found)
+    while len(out) < cells and out[0] - pitch > 0:
+        out.insert(0, out[0] - pitch)
+    while len(out) < cells and out[-1] + pitch < limit:
+        out.append(out[-1] + pitch)
+    return out
+
+
+def _missing_grid_cards(quads: list[np.ndarray], edges: np.ndarray) -> list[np.ndarray]:
+    """Cards of a binder page whose outline wasn't found (glare, low contrast), inferred
+    from the grid the found cards form. Only pockets with enough edges inside count:
+    an empty pocket is nearly uniform plastic."""
+    if len(quads) < _CFG["grid_min_cards"]:
+        return []
+    h, w = edges.shape
+    rects = [cv2.boundingRect(q.astype(np.float32)) for q in quads]
+    cw = float(np.median([r[2] for r in rects]))
+    ch = float(np.median([r[3] for r in rects]))
+    centers = [(r[0] + r[2] / 2, r[1] + r[3] / 2) for r in rects]
+    cols = _grid_line(_clusters([c[0] for c in centers], cw / 2), w)
+    rows = _grid_line(_clusters([c[1] for c in centers], ch / 2), h)
+    out_x, out_y = _CFG["grid_max_outside"] * cw, _CFG["grid_max_outside"] * ch
+    inset = _CFG["grid_inset"]
+    found = []
+    for y in rows:
+        for x in cols:
+            if any(abs(x - cx) < cw / 2 and abs(y - cy) < ch / 2 for cx, cy in centers):
+                continue  # already detected
+            x0, y0, x1, y1 = x - cw / 2, y - ch / 2, x + cw / 2, y + ch / 2
+            if x0 < -out_x or y0 < -out_y or x1 > w + out_x or y1 > h + out_y:
+                continue  # card cut by the photo's edge
+            inner = edges[max(0, int(y0 + inset * ch)):int(y1 - inset * ch),
+                          max(0, int(x0 + inset * cw)):int(x1 - inset * cw)]
+            if inner.size and float((inner > 0).mean()) >= _CFG["grid_min_edge_density"]:
+                found.append(np.float32([[x0, y0], [x1, y0], [x1, y1], [x0, y1]]))
+    return found
 
 
 def _reading_order(quads: list[np.ndarray]) -> list[np.ndarray]:

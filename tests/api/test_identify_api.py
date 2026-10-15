@@ -185,3 +185,49 @@ def test_server_opens_data_scanner_db(monkeypatch, data_dir, tmp_path):
     with TestClient(create_app(identifier=ident, sessions=object(), settings=Settings(), scans_dir=tmp_path)):
         pass
     assert opened == [DB_PATH]
+
+
+class _Reader:
+    """OCR stand-in that returns fixed text."""
+
+    def __init__(self, text):
+        self.text = text
+
+    def read(self, card, codes, prefixes):
+        return self.text
+
+
+def _tie(ident):
+    """Make card 2 look almost exactly like card 1 to the image search."""
+    near = [(("en", "t1-001"), 0.797), (("en", "t1-005"), 0.786), (("en", "t1-003"), 0.70)]
+    return near
+
+
+def test_near_tie_without_text_confirmation_asks(data_dir):
+    from server.recognition.ocr import CardText
+
+    ident = identify_module.Identifier(("en",), data_dir, ocr=False)
+    top = _tie(ident)
+    assert ident._unconfirmed_tie(top, None)
+    assert ident._unconfirmed_tie(top, CardText(languages={"en"}))  # "EN" fits every English card
+    assert not ident._unconfirmed_tie(top, CardText(numbers={"1"}))  # number read: t1-001 confirmed
+    # Set code TST fits both t1-001 and t1-005: it doesn't tell them apart.
+    assert ident._unconfirmed_tie(top, CardText(set_codes={"TST"}))
+    # A number that fits the 1st and 2nd alike doesn't break the tie either.
+    ident.catalogs["en"].metas["t1-005"] = ident.catalogs["en"].metas["t1-005"].__class__(
+        **{**ident.catalogs["en"].metas["t1-005"].__dict__, "number": "1"})
+    assert ident._unconfirmed_tie(top, CardText(numbers={"1"}))
+    clear = [(("en", "t1-001"), 0.90), (("en", "t1-005"), 0.80)]
+    assert not ident._unconfirmed_tie(clear, None)
+
+
+def test_tied_card_is_marked_for_review_even_with_a_high_score(data_dir, monkeypatch):
+    from server.recognition.ocr import CardText
+
+    ident = identify_module.Identifier(("en",), data_dir, ocr=False)
+    ident.reader = _Reader(CardText(languages={"en"}))
+    monkeypatch.setitem(identify_module._ID, "review_score", 0.0)  # only the tie rule can flag it
+    monkeypatch.setitem(identify_module._ID, "review_margin", 1.0)  # any two candidates count as tied
+    assert ident.identify_cards([colored_card(0)])[0].needs_review
+    monkeypatch.setitem(identify_module._ID, "review_margin", 0.0)
+    assert not ident.identify_cards([colored_card(0)])[0].needs_review

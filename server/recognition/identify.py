@@ -144,10 +144,25 @@ class Identifier:
                 ocr_used=text is not None,
                 text=text,
                 foreign_language=foreign,
-                needs_review=foreign is not None or final_score < _ID["review_score"],
+                needs_review=(foreign is not None or final_score < _ID["review_score"]
+                              or self._unconfirmed_tie(top, text)),
                 timings={"embed": embed_s, "search": search_s, "ocr": ocr_s},
             ))
         return results
+
+    def _unconfirmed_tie(self, top: list[tuple[tuple[str, str], float]], text: CardText | None) -> bool:
+        """The top two are within review_margin and the text doesn't single out the first:
+        it must match the 1st candidate's number or set code and not the 2nd's."""
+        if len(top) < 2 or top[0][1] - top[1][1] >= _ID["review_margin"]:
+            return False
+        if text is None:
+            return True
+
+        def matches(key: tuple[str, str]) -> bool:
+            meta = self.catalogs[key[0]].metas[key[1]]
+            return meta.number in text.numbers or bool(meta.set_code and meta.set_code in text.set_codes)
+
+        return not (matches(top[0][0]) and not matches(top[1][0]))
 
     def _ambiguous(self, ranked: list[tuple[tuple[str, str], tuple[float, int]]]) -> bool:
         if _OCR["read_every_card"] or len(self.languages) > 1:

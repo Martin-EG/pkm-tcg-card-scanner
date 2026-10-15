@@ -61,8 +61,10 @@ main { padding: 0 16px 16px; flex: 1; }
 .guide { position: absolute; inset: 0; margin: auto; pointer-events: none; }
 .guide-single { width: 62%; aspect-ratio: 63 / 88; height: auto; border: 3px solid rgba(255,255,255,.9);
   border-radius: 14px; box-shadow: 0 0 0 999px rgba(0,0,0,.35); top: 0; bottom: 0; }
-.guide-page { width: 92%; aspect-ratio: 189 / 264; display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 3%; top: 0; bottom: 0; }
+/* A 9-pocket binder page as photographed: pockets are wider than a card, and rows sit
+   closer than columns (measured on real pages: aspect 0.75, gaps 3.5% across, 2% down). */
+.guide-page { width: 94%; aspect-ratio: 3 / 4; display: grid; grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr); column-gap: 3.5%; row-gap: 2%; top: 0; bottom: 0; }
 .guide-page span { border: 2px solid rgba(255,255,255,.85); border-radius: 8px; }
 .tip { color: var(--muted); margin: 12px 0; }
 
