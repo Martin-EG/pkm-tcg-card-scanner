@@ -108,7 +108,7 @@ def test_same_name_in_top_k_asks_for_ocr(data_dir, monkeypatch):
 @pytest.fixture
 def client(data_dir, tmp_path):
     ident = identify_module.Identifier(("en",), data_dir, ocr=False)
-    store = Store(tmp_path / "server.storage.db")
+    store = Store(tmp_path / "scanner.db")
     app = create_app(identifier=ident, store=store, scans_dir=tmp_path / "scans",
                      sessions=object(), settings=Settings())  # pricing is covered in test_sessions_api
     with TestClient(app) as c:
@@ -170,3 +170,18 @@ def test_correction_rejects_unknown_scan_or_card(client):
 
 def test_image_route_blocks_path_traversal(client):
     assert client.get("/images/../../etc/passwd").status_code == 404
+
+
+def test_server_opens_data_scanner_db(monkeypatch, data_dir, tmp_path):
+    """The database file is data/scanner.db. A module rename once changed this string by
+    accident and the server quietly started a new, empty database."""
+    import server.api.app as app_module
+    from server.paths import DATA, DB_PATH
+
+    assert DB_PATH == DATA / "scanner.db"
+    opened = []
+    monkeypatch.setattr(app_module, "Store", lambda path: opened.append(path) or Store(tmp_path / "db.sqlite"))
+    ident = identify_module.Identifier(("en",), data_dir, ocr=False)
+    with TestClient(create_app(identifier=ident, sessions=object(), settings=Settings(), scans_dir=tmp_path)):
+        pass
+    assert opened == [DB_PATH]
