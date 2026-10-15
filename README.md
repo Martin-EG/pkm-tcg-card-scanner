@@ -229,6 +229,41 @@ The phone app talks to these endpoints; interactive docs are at `/docs` on the r
 - **Timing:** not yet measured on the shop PC.
 - **iPhone installation is manual:** iOS has no install prompt (the app explains the steps), and the shop certificate has to be trusted by hand on each phone.
 
+## Maintenance: new sets
+
+New Pokémon sets come out every two to three months. Nothing needs retraining: DINOv2 compares a photo against the catalog images, so a new card is recognized as soon as its image is in the index. The index grows by roughly 1,500 cards a year and search stays at a few milliseconds.
+
+### What to do today (manual)
+
+Run these on the shop PC a few days after a set comes out, and again two or three weeks later. TCGdex often publishes images days or weeks after the release.
+
+```bash
+python scripts/fetch_catalog.py --since 1999-01-01      # new sets and cards whose TCGdex image appeared; skips the rest
+rm data/cache/ptcg_sets.json                            # refresh pokemontcg.io's set list (it's cached once)
+python scripts/fill_image_gaps.py --retry               # pokemontcg.io images for cards TCGdex still has none for
+python scripts/build_index.py --model dinov2 --append   # embed only the new cards (~1 min per ~800 cards)
+```
+
+Then restart the server so it loads the new index. Phones need nothing.
+
+What to expect right after a release:
+
+- **No image yet:** cards TCGdex lists without an image are skipped until it has one, or until pokemontcg.io does. Photos of them come back marked for review.
+- **No price yet:** the first weeks often have no TCGplayer price. The app shows the eBay link and a manual price field.
+- **OCR picks up the new set's printed code** (e.g. `PRE`, `CRI`) automatically, because `fetch_catalog.py` caches each new set's code and size.
+- **Check the set mapping:** if a new set has an unusual name on pokemontcg.io, `fill_image_gaps.py --dry-run` shows it as "(no pokemontcg.io set)". Add it to `SET_OVERRIDES` in `server/pricing/setmap.py`.
+
+### Planned: automatic weekly update
+
+Not built yet. The goal is one command the shop PC runs weekly as a scheduled task (cron on Linux or macOS, Task Scheduler on Windows), so nobody has to remember the steps above:
+
+1. Download what's new from TCGdex.
+2. Refresh pokemontcg.io's set list (keeping the old one if the API is down).
+3. Retry missing images only for recently released sets; older gaps don't change.
+4. Append the new cards to the index.
+5. Make the running server pick up the new index without a restart.
+6. Print a short report: cards added per set, and cards still without an image.
+
 ## Upgrading
 
 - **`data/server.storage.db` exists:** versions between the server reorganization and the database-path fix wrote to `data/server.storage.db` by mistake. Stop the server, keep a copy of the old file (`mv data/scanner.db data/scanner.db.before-fix`), then `mv data/server.storage.db data/scanner.db`, and start the server again.
