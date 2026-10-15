@@ -200,3 +200,7 @@ python scripts/eval_phase1.py --threads 4        # identification QA gate; needs
 - **Timing:** not yet measured on the shop PC.
 
 See `docs/MVP.md` for the product and `docs/sequence-builder.md` for the phase plan. Contributors and coding agents: read `AGENTS.md` first.
+
+## License
+
+Apache License 2.0, see [LICENSE](LICENSE). The models it runs, DINOv2 and PaddleOCR, are Apache 2.0 too.

@@ -4,7 +4,7 @@ Oct 12, 2026 · @Martin
 
 ## Summary
 
-A web app for the counter's phone that identifies Pokémon cards from a photo, looks up their market price, and calculates the cash and store-credit offer. It is not this week's challenge submission; it's the second project, to be tested in a couple of shops in Mexicali.
+A web app for the counter's phone that identifies Pokémon cards from a photo, looks up their market price, and calculates the cash and store-credit offer. It's the entry for the Hacktoberfest Open-Source AI Challenge Week 2 (Side Hustle) on DEV, and it will be tested in a couple of shops in Mexicali.
 
 **Who it's for:** small TCG shops that buy collections and take cards in trade, in English, with Spanish and Japanese cards as optional languages the shop can turn on or off.
 
