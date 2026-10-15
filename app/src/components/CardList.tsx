@@ -7,26 +7,29 @@ interface Props {
   settings: Settings | null
   extras: Record<number, CardExtras>
   onChange: (cardId: number, changes: CardPatch) => void
+  onRemove: (cardId: number) => void
 }
 
-export function CardList({ session, settings, extras, onChange }: Props) {
+export function CardList({ session, settings, extras, onChange, onRemove }: Props) {
   if (!session || !session.cards.length) {
     return <p className="empty">Aún no hay cartas. Toma una foto en “Escanear”.</p>
   }
   return (
     <section className="cards">
       {[...session.cards].reverse().map((c) => (
-        <CardRow key={c.id} card={c} extra={extras[c.id]} settings={settings} onChange={(ch) => onChange(c.id, ch)} />
+        <CardRow key={c.id} card={c} extra={extras[c.id]} settings={settings}
+          onChange={(ch) => onChange(c.id, ch)} onRemove={() => onRemove(c.id)} />
       ))}
     </section>
   )
 }
 
-function CardRow({ card, extra, settings, onChange }: {
+function CardRow({ card, extra, settings, onChange, onRemove }: {
   card: SessionCard
   extra?: CardExtras
   settings: Settings | null
   onChange: (changes: CardPatch) => void
+  onRemove: () => void
 }) {
   const [manual, setManual] = useState('')
   const conditions = settings?.conditions.map((c) => c.code) ?? ['NM', 'LP', 'MP', 'HP', 'DMG']
@@ -81,6 +84,10 @@ function CardRow({ card, extra, settings, onChange }: {
         <input type="checkbox" checked={card.accepted} onChange={(e) => onChange({ accepted: e.target.checked })} />
         <span>{card.accepted ? 'El cliente la vende' : 'El cliente se la queda'}</span>
       </label>
+
+      <button className="btn btn-remove" onClick={onRemove} aria-label={`Quitar ${card.name} de la compra`}>
+        Quitar de la compra
+      </button>
     </article>
   )
 }

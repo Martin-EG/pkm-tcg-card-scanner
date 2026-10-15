@@ -112,8 +112,25 @@ export interface PendingReview {
   card: IdentifiedCard
 }
 
+// Changes waiting for the server. Patches have no kind (that's how phones stored them before
+// removing cards existed), so old saved queues keep working.
 export interface QueuedPatch {
+  kind?: undefined
   sessionId: number
   cardId: number
   changes: CardPatch
+}
+
+export interface QueuedRemoval {
+  kind: 'remove' | 'restore'
+  sessionId: number
+  cardId: number
+}
+
+export type QueuedOp = QueuedPatch | QueuedRemoval
+
+// The last card the employee removed, kept so "Deshacer" can put it back where it was.
+export interface RemovedCard {
+  card: SessionCard
+  position: number
 }

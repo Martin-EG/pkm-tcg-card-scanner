@@ -216,3 +216,45 @@ def test_price_api_down_without_cache_gives_no_price(tmp_path):
         api.app_state_sessions.prices.providers = [Down()]
         _, card = _session_with(api, "sv03.5-004")
         assert card["price"] is None and card["buying"] is None
+
+
+def test_remove_card_leaves_list_and_totals_but_keeps_the_row(api):
+    sid, first = _session_with(api, "sv03.5-004")
+    second = api.post(f"/sessions/{sid}/cards", json={"card_id": "sv03.5-004"}).json()
+    r = api.delete(f"/sessions/{sid}/cards/{first['id']}")
+    assert r.status_code == 200
+    s = r.json()
+    assert [c["id"] for c in s["cards"]] == [second["id"]]
+    assert (s["totals"]["cash"], s["totals"]["cards_buying"]) == (157.25, 1)
+    assert [c["id"] for c in api.get(f"/sessions/{sid}").json()["cards"]] == [second["id"]]
+    row = api.store.conn.execute("SELECT removed_at, price_usd FROM session_cards WHERE id = ?", (first["id"],)).fetchone()
+    assert row["removed_at"] is not None and row["price_usd"] == 10.0  # kept for review
+
+
+def test_restore_undoes_remove(api):
+    sid, card = _session_with(api, "sv03.5-004")
+    api.delete(f"/sessions/{sid}/cards/{card['id']}")
+    s = api.post(f"/sessions/{sid}/cards/{card['id']}/restore").json()
+    assert [c["id"] for c in s["cards"]] == [card["id"]] and s["totals"]["cash"] == 157.25
+
+
+def test_remove_and_restore_are_idempotent(api):
+    sid, card = _session_with(api, "sv03.5-004")
+    assert api.delete(f"/sessions/{sid}/cards/{card['id']}").status_code == 200
+    assert api.delete(f"/sessions/{sid}/cards/{card['id']}").json()["cards"] == []
+    api.post(f"/sessions/{sid}/cards/{card['id']}/restore")
+    assert len(api.post(f"/sessions/{sid}/cards/{card['id']}/restore").json()["cards"]) == 1
+
+
+def test_removed_card_cannot_be_edited(api):
+    sid, card = _session_with(api, "sv03.5-004")
+    api.delete(f"/sessions/{sid}/cards/{card['id']}")
+    assert api.patch(f"/sessions/{sid}/cards/{card['id']}", json={"condition": "LP"}).status_code == 404
+
+
+def test_remove_unknown_card_or_session(api):
+    sid, card = _session_with(api, "sv03.5-004")
+    assert api.delete(f"/sessions/{sid}/cards/999").status_code == 404
+    assert api.delete(f"/sessions/999/cards/{card['id']}").status_code == 404
+    other = api.post("/sessions").json()["id"]
+    assert api.delete(f"/sessions/{other}/cards/{card['id']}").status_code == 404  # only through its own session

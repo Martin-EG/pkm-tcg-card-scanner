@@ -100,6 +100,13 @@ select { width: 100%; }
 .toggle { display: flex; align-items: center; gap: 12px; margin-top: 14px; min-height: 48px; font-weight: 600; }
 .toggle input { width: 28px; height: 28px; }
 .empty { color: var(--muted); text-align: center; margin-top: 40px; }
+/* Room for the undo notice above the tabs, so it never covers the last card's buttons. */
+.app-with-toast { padding-bottom: calc(var(--tap) + 24px + 76px); }
+.btn-remove { width: 100%; margin-top: 12px; background: transparent; color: var(--accent); border-color: var(--line); }
+.toast { position: fixed; left: 12px; right: 12px; bottom: calc(var(--tap) + 28px + env(safe-area-inset-bottom));
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 10px 10px 16px;
+  background: var(--ink); color: var(--bg); border-radius: 14px; box-shadow: 0 6px 20px rgba(0,0,0,.25); z-index: 10; }
+.toast .btn-undo { margin-left: 0; background: var(--bg); color: var(--ink); border-color: var(--bg); }
 
 .summary .currency-note { font-size: 1.1rem; font-weight: 700; margin: 8px 0 4px; }
 .summary .fx { margin: 0 0 12px; color: var(--muted); }

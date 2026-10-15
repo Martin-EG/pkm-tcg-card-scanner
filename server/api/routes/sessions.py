@@ -26,6 +26,18 @@ async def add_session_card(session_id: int, card: SessionCardIn, svc: Services =
     return svc.sessions.add_card(session_id, CardInput(**card.model_dump()))
 
 
+@router.delete("/{session_id}/cards/{card_row_id}")
+async def remove_session_card(session_id: int, card_row_id: int, svc: Services = Depends(services)):
+    """Remove a card from the session; returns the session with updated totals."""
+    return svc.sessions.remove_card(session_id, card_row_id)
+
+
+@router.post("/{session_id}/cards/{card_row_id}/restore")
+async def restore_session_card(session_id: int, card_row_id: int, svc: Services = Depends(services)):
+    """Undo a removal ("Deshacer"); returns the session with updated totals."""
+    return svc.sessions.restore_card(session_id, card_row_id)
+
+
 @router.patch("/{session_id}/cards/{card_row_id}")
 async def update_session_card(session_id: int, card_row_id: int, patch: SessionCardPatch,
                               svc: Services = Depends(services)):

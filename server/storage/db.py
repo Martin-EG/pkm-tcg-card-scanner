@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS session_cards (
     market REAL, cash_offer REAL, credit_offer REAL,
     buying INTEGER,                 -- 0: below the minimum; NULL: no price yet
     accepted INTEGER NOT NULL DEFAULT 1,
+    removed_at TEXT,                -- set when the employee removes the card; kept for review
     ebay_url TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
@@ -105,6 +106,7 @@ class Store:
         # Columns added after a table was first created (CREATE IF NOT EXISTS skips them).
         self._ensure_column("price_cache", "provider", "TEXT")
         self._ensure_column("session_cards", "price_provider", "TEXT")
+        self._ensure_column("session_cards", "removed_at", "TEXT")
 
     def _ensure_column(self, table: str, column: str, kind: str) -> None:
         columns = {r[1] for r in self.conn.execute(f"PRAGMA table_info({table})")}

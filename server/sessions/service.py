@@ -68,7 +68,7 @@ class SessionService:
     def get(self, session_id: int) -> dict:
         s = self._session(session_id)
         cards = [self._card_dict(r) for r in self.conn.execute(
-            "SELECT * FROM session_cards WHERE session_id = ? ORDER BY id", (session_id,))]
+            "SELECT * FROM session_cards WHERE session_id = ? AND removed_at IS NULL ORDER BY id", (session_id,))]
         counted = [c for c in cards if c["buying"] and c["accepted"]]
         d = self.rules.decimals
         return {
@@ -104,12 +104,36 @@ class SessionService:
         self.conn.commit()
         return self._reprice(int(cur.lastrowid))
 
-    def update_card(self, session_id: int, card_row_id: int, changes: dict) -> dict:
+    def _card_row(self, session_id: int, card_row_id: int) -> sqlite3.Row:
         self._session(session_id)
         r = self.conn.execute("SELECT * FROM session_cards WHERE id = ? AND session_id = ?",
                               (card_row_id, session_id)).fetchone()
         if r is None:
             raise SessionError(404, "No existe esa carta en la sesión.")
+        return r
+
+    def remove_card(self, session_id: int, card_row_id: int) -> dict:
+        """Take a card out of the session and its totals. The row stays, marked with the
+        time it was removed, so mistaken scans can be reviewed later. Idempotent."""
+        r = self._card_row(session_id, card_row_id)
+        if r["removed_at"] is None:
+            self.conn.execute("UPDATE session_cards SET removed_at = ?, updated_at = ? WHERE id = ?",
+                              (_now(), _now(), card_row_id))
+            self.conn.commit()
+        return self.get(session_id)
+
+    def restore_card(self, session_id: int, card_row_id: int) -> dict:
+        """Undo remove_card. Idempotent."""
+        self._card_row(session_id, card_row_id)
+        self.conn.execute("UPDATE session_cards SET removed_at = NULL, updated_at = ? WHERE id = ?",
+                          (_now(), card_row_id))
+        self.conn.commit()
+        return self.get(session_id)
+
+    def update_card(self, session_id: int, card_row_id: int, changes: dict) -> dict:
+        r = self._card_row(session_id, card_row_id)
+        if r["removed_at"] is not None:
+            raise SessionError(404, "Esa carta se quitó de la compra.")
         sets, args = [], []
         if "condition" in changes:
             if changes["condition"] not in CONDITIONS:

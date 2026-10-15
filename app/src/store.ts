@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, ServerError, ServerUnreachable } from './api'
 import type {
-  Candidate, CardExtras, CardPatch, IdentifiedCard, PendingReview, QueuedPatch, Session, SessionCard, Settings,
+  Candidate, CardExtras, CardPatch, IdentifiedCard, PendingReview, QueuedOp, RemovedCard, Session, SessionCard,
+  Settings,
 } from './types'
 
 export const STORAGE_KEY = 'tcg-scanner-state-v1'
@@ -13,10 +14,11 @@ export interface CounterState {
   session: Session | null
   extras: Record<number, CardExtras>
   reviews: PendingReview[]
-  queue: QueuedPatch[]
+  queue: QueuedOp[]
+  undo: RemovedCard | null
 }
 
-const EMPTY: CounterState = { settings: null, session: null, extras: {}, reviews: [], queue: [] }
+const EMPTY: CounterState = { settings: null, session: null, extras: {}, reviews: [], queue: [], undo: null }
 
 export function loadState(): CounterState {
   try {
@@ -32,6 +34,23 @@ function saveState(s: CounterState) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(s))
   } catch {
     /* storage full or blocked: the session still lives on the server */
+  }
+}
+
+// Totals as the server computes them, for changes shown before the server answers.
+function withTotals(session: Session, cards: SessionCard[]): Session {
+  const counted = cards.filter((c) => c.buying && c.accepted)
+  const sum = (f: (c: SessionCard) => number | null) => Math.round(counted.reduce((t, c) => t + (f(c) ?? 0), 0) * 100) / 100
+  return {
+    ...session,
+    cards,
+    totals: {
+      cash: sum((c) => c.cash_offer),
+      credit: sum((c) => c.credit_offer),
+      cards_buying: counted.length,
+      cards_not_buying: cards.filter((c) => c.buying === false).length,
+      cards_without_price: cards.filter((c) => c.buying === null).length,
+    },
   }
 }
 
@@ -71,6 +90,15 @@ export function useCounter() {
   const flush = useCallback(async () => {
     const { queue, session } = stateRef.current
     for (const q of queue) {
+      if (q.kind !== undefined) {
+        const fresh = await (q.kind === 'remove' ? api.removeCard : api.restoreCard)(q.sessionId, q.cardId)
+        update((s) => ({
+          ...s,
+          queue: s.queue.slice(1),
+          session: s.session && s.session.id === q.sessionId ? fresh : s.session,
+        }))
+        continue
+      }
       const card = await api.patchCard(q.sessionId, q.cardId, q.changes)
       update((s) => ({
         ...s,
@@ -196,12 +224,63 @@ export function useCounter() {
     }
   }, [handle, update])
 
+  // Send a removal or restore now, or queue it when the server can't be reached.
+  const sendRemoval = useCallback(async (op: Extract<QueuedOp, { kind: 'remove' | 'restore' }>) => {
+    if (stateRef.current.queue.length) {
+      update((s) => ({ ...s, queue: [...s.queue, op] }))
+      return
+    }
+    try {
+      const fresh = await (op.kind === 'remove' ? api.removeCard : api.restoreCard)(op.sessionId, op.cardId)
+      update((s) => ({ ...s, session: s.session && s.session.id === op.sessionId ? fresh : s.session }))
+    } catch (e) {
+      if (e instanceof ServerUnreachable) {
+        update((s) => ({ ...s, queue: [...s.queue, op] }))
+      }
+      handle(e)
+    }
+  }, [handle, update])
+
+  const removeCard = useCallback(async (cardId: number) => {
+    const session = stateRef.current.session
+    const position = session?.cards.findIndex((c) => c.id === cardId) ?? -1
+    if (!session || position < 0) return
+    const card = session.cards[position]
+    update((s) => ({
+      ...s,
+      undo: { card, position },
+      session: s.session && withTotals(s.session, s.session.cards.filter((c) => c.id !== cardId)),
+    }))
+    await sendRemoval({ kind: 'remove', sessionId: session.id, cardId })
+  }, [sendRemoval, update])
+
+  const undoRemove = useCallback(async () => {
+    const { undo, session, queue } = stateRef.current
+    if (!undo || !session) return
+    const cards = [...session.cards]
+    cards.splice(Math.min(undo.position, cards.length), 0, undo.card)
+    const last = queue[queue.length - 1]
+    const stillQueued = last?.kind === 'remove' && last.cardId === undo.card.id && last.sessionId === session.id
+    update((s) => ({
+      ...s,
+      undo: null,
+      queue: stillQueued ? s.queue.slice(0, -1) : s.queue,  // never reached the server: just drop it
+      session: s.session && withTotals(s.session, cards),
+    }))
+    if (!stillQueued) await sendRemoval({ kind: 'restore', sessionId: session.id, cardId: undo.card.id })
+  }, [sendRemoval, update])
+
+  const clearUndo = useCallback(() => update((s) => (s.undo ? { ...s, undo: null } : s)), [update])
+
   const newSession = useCallback(() => {
     update((s) => ({ ...EMPTY, settings: s.settings }))
     setMessage(null)
   }, [update])
 
-  return { state, online, busy, message, scan, resolveReview, changeCard, newSession, retry: check, dismissMessage: () => setMessage(null) }
+  return {
+    state, online, busy, message, scan, resolveReview, changeCard, removeCard, undoRemove, clearUndo, newSession,
+    retry: check, dismissMessage: () => setMessage(null),
+  }
 }
 
 export type Counter = ReturnType<typeof useCounter>
