@@ -6,14 +6,23 @@ Everything runs on the shop PC: open models, a local card index, and no cloud vi
 
 ## How it works
 
-```
-photo ─► crop ─► image search ─► OCR re-rank ─► card + confidence
-         1–9      DINOv2 +        set code,
-         cards    FAISS index     number, language
-                                        │
-card ─► price (TCGplayer market price via TCGdex, pokemontcg.io as backup; cached daily)
-     ─► × exchange rate (Banxico FIX, optional)
-     ─► × condition factor × 85% cash | 90% credit  ─►  offer + session total
+```mermaid
+flowchart TB
+  subgraph identify["Identify (on the shop PC)"]
+    direction LR
+    photo([Photo]) --> crop["Crop<br/>1–9 cards"]
+    crop --> search["Image search<br/>DINOv2 + FAISS"]
+    search --> ocr["OCR re-rank<br/>set code, number, language"]
+    ocr --> card([Card + confidence])
+  end
+  subgraph offer["Price and offer"]
+    direction LR
+    price["TCGplayer market price<br/>TCGdex, pokemontcg.io backup<br/>cached daily"]
+    price --> fx["× exchange rate<br/>Banxico FIX, optional"]
+    fx --> cond["× condition factor<br/>× 85% cash | 90% credit"]
+    cond --> total([Offer + session total])
+  end
+  card --> price
 ```
 
 1. **Crop:** finds 1 to 9 cards in the photo and straightens each one. Blurry photos and photos with no card get a clear error instead of a guess.
