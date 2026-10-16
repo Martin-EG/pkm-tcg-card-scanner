@@ -26,7 +26,7 @@ flowchart TB
 ```
 
 1. **Crop:** finds 1 to 9 cards in the photo and straightens each one. Blurry photos and photos with no card get a clear error instead of a guess.
-2. **Identify:** each card is embedded with DINOv2 and searched in a FAISS index of the full English TCGdex catalog (19,663 cards).
+2. **Identify:** each card is embedded with DINOv2 and searched in a FAISS index of the English catalog (20,448 cards: TCGdex, plus pokemontcg.io images for cards TCGdex has no image for).
 3. **Read:** PaddleOCR reads the set code and collector number to tell apart same-art reprints, and the name bar to flag Spanish and Japanese cards.
 4. **Price and offer:**
    - **Price:** the TCGplayer market price, read from TCGdex, with pokemontcg.io as a backup.
