@@ -1,5 +1,7 @@
 # TCG Buylist Scanner
 
+![Buylist Scanner: price a binder page in seconds, with open AI and no photo leaving the store](docs/banner.jpg)
+
 A Pokémon card scanner for small TCG shops in Mexicali, Mexico. An employee takes a photo of one card or a binder page with their phone. The shop's PC identifies each card, looks up its market price, and calculates the buy offer in cash and in store credit, using the shop's own rules.
 
 Everything runs on the shop PC: open models, a local card index, and no cloud vision API. Customer photos never leave the shop. Only price and exchange-rate lookups use the internet, and both are cached so the counter keeps working offline.
